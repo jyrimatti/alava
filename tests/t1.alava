@@ -1,0 +1,5 @@
+let
+  bool : Type
+  bool = (x : Type) -> x
+in
+  bool

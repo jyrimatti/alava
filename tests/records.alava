@@ -1,0 +1,31 @@
+let
+  bool : Type
+  bool = (x : Type) -> x -> x -> x
+
+  true : bool
+  true = \x. \y. \z. y
+
+--  Void : Type
+  Void = {}
+
+--  Person : Type
+  Person = { manager: bool }
+
+  T : bool -> Type
+  T = \b. bool
+
+--  Dependent : Type
+  Dependent (A: bool) (B: (T A)) (C:Type) = { a: C, b: (T A) }
+--Dependent (A: bool) (B: Type) (C:Type) = { a: C, b: B }
+
+  p : Person
+  p = Person_ { manager = true }
+
+  f : Dependent
+  f = Dependent_ true true bool { a = bool, b = true }
+
+  -- record construction using ordered arguments
+  g : Dependent
+  g = Dependent_ true true
+in
+  bool

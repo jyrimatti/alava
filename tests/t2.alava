@@ -1,0 +1,14 @@
+let
+  bool : Type
+  bool = (x : Type) -> x -> x -> x
+
+  true : bool
+  true = \x. \y. \z. y
+ 
+  false : bool
+  false = \x. \y. \z. z
+
+  cond : bool -> (x:Type) -> x -> x -> x
+  cond = \b. b 
+in
+  bool

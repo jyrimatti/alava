@@ -1,0 +1,31 @@
+let
+
+  bool : Type
+  bool = (x : Type) -> x -> x -> x
+
+  true : bool
+  true = \x. \y. \z. y
+ 
+  false : bool
+  false = \x. \y. \z. z
+
+  not : bool -> bool
+  not = \b . if b False True
+
+  Unit : Type
+  Unit = (x : Type) -> x
+
+  if : bool -> (x:Type) -> (y:Type) -> x -> y -> (x|y)
+  if = \b. b
+
+  and : Type -> Type -> Type
+  and = \p. \q. (c: Type) -> (p -> q -> c) -> c
+
+  T : bool -> Type
+  T = \b. if b Type Unit bool
+
+  bar : (b : bool) -> T b
+  bar = \b . if b Type Unit true
+
+in 
+  bool

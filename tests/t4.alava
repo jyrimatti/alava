@@ -1,0 +1,11 @@
+let
+  eq : (x: Type) -> x -> x -> x
+  eq = \x. \y. \z. (x: Type) -> y
+
+  sym : (A:Type) -> (x:A) -> (y:A) -> (eq x y) -> eq y x
+
+  sym_false : (A:Type) -> (B:Type) -> (x:A) -> (y:B) -> (eq x y) -> eq y x
+
+  trans : (A:Type) -> (x:A) -> (y:A) -> (z:A) -> (eq x z) -> (eq z y) -> (eq x y)
+in
+  sym
