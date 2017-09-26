@@ -13,7 +13,6 @@ import Control.Monad.Except
 import Data.Text (pack)
 
 import qualified Prelude as P
---import Debug.Trace (trace)
 
 import Syntax (Type,Term(Var,Type,Pi,Lam,App,Ann,Pos,Paren,Let,Sig,Def,Comment,Sigma,Prod),AnnType(Inferred))
 import Environment (Env,lookupTy,extendCtx,updateCtx,extendSourceLocation,emptyEnv)
@@ -143,12 +142,7 @@ tcTerm env t@(Let xs body) ann = do
     foo (e,exs)    (Def name x) = case lookupTy e name of
         Nothing -> throwError $ err $ NotInScope e name
         Just ty -> do
-                    --let newEnv = extendCtx (Sig name ty) e
-                    --(et2, ety2) <- checkType newEnv x ty
-                    --let newEnv2 = extendCtx (Sig name ety2) e
-                    --(eTy,_) <- inferType e ty
-                    --let newEnv = trace "a" $ extendCtx (Def name x) e
-                    (et2, ety2) <- checkType e x $ trace (toList $ show ty) ty
+                    (et2, ety2) <- checkType e x ty
                     let newEnv2 = extendCtx (Def name et2) e
                     pure (newEnv2, (Def name et2):exs)
   (newEnv, exs)  <- foldM foo (env,[]) xs

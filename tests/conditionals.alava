@@ -15,20 +15,15 @@ let
   Unit : Type
   Unit = (x : Type) -> x
 
-  RR : (x: Type) -> (y: Type) -> bool -> Type
-  RR = \x . \y . \b . b x y
-
-  if : (x:Type) -> (y:Type) -> (b: bool) -> x -> y -> RR x y b
-  if = \tx . \ty . \b . \x . \y . b x y
+  if : (b: bool) -> Type -> Type -> Type
+  if = \b . \x . \y . b Type x y
 
   and : Type -> Type -> Type
   and = \p. \q. (c: Type) -> (p -> q -> c) -> c
 
   T : bool -> Type
-  T = \b. if b Type Unit bool
+  T = \b. if b Unit bool
 
-  bar : (b : bool) -> T b
-  bar = \b . if b Type Unit true
 
 in 
   bool

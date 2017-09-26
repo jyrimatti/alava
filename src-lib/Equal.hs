@@ -142,7 +142,7 @@ equate env t1 t2 = do
 
 equate_ :: HasCallStack => Env -> Term -> Term -> Bool
 equate_ env t1 t2 = let
-  n1 = trace (toList $ "equate_:" <> show t1 <> " " <> show t2) $ whnf' env False t1  
+  n1 = whnf' env False t1  
   n2 = whnf' env False t2
   o (Def x1 _) (Def x2 _) = if x1 < x2 then LT else if x1 > x2 then GT else EQ
   recEquate :: HasCallStack => String -> Term -> Bool
@@ -152,7 +152,7 @@ equate_ env t1 t2 = let
   equateMaybe _ Nothing Nothing     = True
   equateMaybe env (Just a) (Just b) = equate_ env a b
   equateMaybe _ _ _                 = False
-  in trace (toList $ "---> " <> show n1 <> " ---> " <> show n2) $ case (n1, n2) of
+  in case (n1, n2) of
     (Type, Type)                     -> True
     (Var x, Var y)                   -> x == y
     (Lam _ _ b1, Lam _ _ b2)         -> equate_ env b1 b2
@@ -182,7 +182,7 @@ ensurePi env ty = case whnf env ty of
 subst Nothing param x = x
 subst (Just name) param (Ann x y z) = Ann (subst (Just name) param x) (subst (Just name) param y) z
 subst (Just name) param Type = Type
-subst (Just name) param (Var x) | x == name = trace (toList $ "Substituted " <> name <> " with " <> show param) param
+subst (Just name) param (Var x) | x == name = param
 subst (Just name) param x@(Var _) = x
 subst (Just name) param (App x y) = App (subst (Just name) param x) (subst (Just name) param y)
 subst (Just name) param (Pi x y z) = Pi x (subst (Just name) param y) (subst (Just name) param z)
@@ -210,14 +210,14 @@ whnf' env b (Ann (Var x) t annType) = case lookupDef env x of
       (Just d) -> whnf' env b d
       _        -> Ann (Var x) t annType
 
-whnf' env b (App t1 t2) = trace "App" $ case whnf' env b t1 of 
-    (Lam x _ body)          -> let ret = trace "Lam" $ whnf' env b $ trace (toList $ "Substituting " <> x <> " with " <> show t2 <> " in " <> show body) $ subst (Just x) t2 body in trace (toList $ " ...done: " <> show ret) ret
+whnf' env b (App t1 t2) = case whnf' env b t1 of 
+    (Lam x _ body)          -> let ret = whnf' env b $ subst (Just x) t2 body in ret
     --(Pi (Just name) _ body) -> whnf' (extendCtx (Sig name t2) env) b body
-    nf@(Var x) -> trace "Var" $ let nf2 = whnf' env b t2
+    nf@(Var x) -> let nf2 = whnf' env b t2
                   in case lookupDef env x of
-                      (Just d) -> trace (toList $ "Just " <> show d) $ whnf' env False (App d nf2)
-                      _        -> trace (toList $ "Nothing: " <> show x) $ App nf nf2
-    nf      -> trace "->App" $ App nf t2
+                      (Just d) -> whnf' env False (App d nf2)
+                      _        -> App nf nf2
+    nf      -> App nf t2
 
 whnf' env b (Let xs body) = let
   foo e (Sig n ty) = let

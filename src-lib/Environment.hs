@@ -29,10 +29,10 @@ lookupTy :: Env -> TName -> Maybe Term
 lookupTy env v = listToMaybe [ty | Sig v' ty <- ctx env, v == v'] 
 
 extendCtx :: HasCallStack => Term -> Env -> Env
-extendCtx d@(Sig name _) env = trace (toList $ "extendCtx Sig: " <> name) $ case [x | Sig x _ <- ctx env, x == name] of
+extendCtx d@(Sig name _) env = case [x | Sig x _ <- ctx env, x == name] of
     [x] | name /= "_" -> P.error (toList ("Already in context: " <> show d))
     _ -> env { ctx = d:(ctx env) }
-extendCtx d@(Def name _) env = trace (toList $ "extendCtx Def: " <> name) $ case [x | Def x _ <- ctx env, x == name] of
+extendCtx d@(Def name _) env = case [x | Def x _ <- ctx env, x == name] of
     [x] | name /= "_" -> P.error (toList ("Already in context: " <> show d))
     _ -> env { ctx = d:(ctx env) }
 
