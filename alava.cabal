@@ -12,7 +12,7 @@ Library
   hs-source-dirs: src-lib
   Exposed-Modules: SimpleParser, Syntax, TypeCheck, Environment, Equal, PrettyPrint, HtmlPrint, Alava
   build-depends:
-      base >4.9.1, foundation, mtl, blaze-markup, blaze-html, text
+      base >4.9.1, foundation, mtl, blaze-markup, blaze-html, text, monad-logger, mmorph
 
 Executable main
   default-language: Haskell2010

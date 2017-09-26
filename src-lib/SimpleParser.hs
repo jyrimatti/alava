@@ -2,11 +2,11 @@
 module SimpleParser where
 
 import Foundation(($),(.),(+),String,fromList,toList,Char,Bool(True,False),Maybe(Just,Nothing),Functor(fmap),not,(||),(&&),(==),(/=),elem,error,show,(<>))
-import Foundation.Collection (uncons,filter,foldl,foldr,reverse)
+import Foundation.Collection (uncons,filter,foldr,reverse)
 
 import Control.Applicative (Applicative,Alternative(empty,(<|>)),pure,some,many,(<*>),(*>),(<*),(<$>),optional)
 import Data.Traversable (sequenceA)
-import Data.Foldable (foldl1)
+import Data.Foldable (foldl1,foldl)
 import Data.Char (isSpace)
 import Data.Monoid (Monoid,mconcat,mempty)
 
@@ -52,7 +52,7 @@ getPos (Def _ b)   = getPos b
 getPos (Paren a)   = getPos a
 getPos (Sigma _ Nothing (Just c)) = getPos c
 getPos (Sigma _ (Just b) _) = getPos b
-getPos (Prod (Just a) _ _) = getPos a
+getPos (Prod (Just a) _) = getPos a
 getPos (Case a _ _) = getPos a
 
 reservedChars :: String
@@ -315,22 +315,27 @@ valdef = toDef <$> (var <* ws <* char '=' <* ws) <*> term
 
 -- |
 -- >>> parse recorddef "a = {b:Type}"
--- [([*Def "a" (*Sigma (Just "b") (Just *Type) Nothing)],...)]
+-- [([*Def "a" (*Sigma (Just "b") (Just *Type) Nothing),*Sig "a_" (Pi Nothing (*Sigma (Just "b") (Just *Type) Nothing) (*Sigma (Just "b") (Just *Type) Nothing)),*Def "a_" (Lam "_" Nothing (Var "_"))],...)]
 --
 -- >>> parse recorddef "a = {b:Type, c:Type}"
--- [([*Def "a" (*Sigma (Just "b") (Just *Type) (Just (*Sigma (Just "c") (Just *Type) Nothing)))],...)]
+-- [([*Def "a" (*Sigma (Just "b") (Just *Type) (Just (*Sigma (Just "c") (Just *Type) Nothing))),*Sig "a_" (Pi Nothing (*Sigma (Just "b") (Just *Type) (Just (*Sigma (Just "c") (Just *Type) Nothing))) (*Sigma (Just "b") (Just *Type) (Just (*Sigma (Just "c") (Just *Type) Nothing)))),*Def "a_" (Lam "_" Nothing (Var "_"))],...)]
 --
 -- >>> parse recorddef "a (B:Type) = {b:B}"
--- [([*Def "a" (*Pi (Just "B") *Type (*Sigma (Just "b") (Just (*Var "B")) Nothing))],...)]
+-- [([*Def "a" (Lam "B" Nothing (*Sigma (Just "b") (Just (*Var "B")) Nothing)),*Sig "a_" (*Pi (Just "B") *Type (Pi Nothing (*Sigma (Just "b") (Just (*Var "B")) Nothing) (*Sigma (Just "b") (Just (*Var "B")) Nothing))),*Def "a_" (Lam "_" Nothing (Lam "_" Nothing (Var "_")))],...)]
 --
 -- >>> parse recorddef "a B C = {b: B C}"
--- [([*Def "a" (*Pi Nothing (*Var "B") (*Pi Nothing (*Var "C") (*Sigma (Just "b") (Just (*App (*Var "B") (*Var "C"))) Nothing)))],...)]
+-- [([*Def "a" (Lam "B" Nothing (Lam "C" Nothing (*Sigma (Just "b") (Just (*App (*Var "B") (*Var "C"))) Nothing))),*Sig "a_" (*Pi Nothing (*Var "B") (*Pi Nothing (*Var "C") (Pi Nothing (*Sigma (Just "b") (Just (*App (*Var "B") (*Var "C"))) Nothing) (*Sigma (Just "b") (Just (*App (*Var "B") (*Var "C"))) Nothing)))),*Def "a_" (Lam "_" Nothing (Lam "_" Nothing (Lam "_" Nothing (Var "_"))))],...)]
 recorddef :: Parser [Term]
 recorddef = toDef <$> var <*> many (ws *> factor) <* (ws <* char '=' <* ws) <*> record
-  where factor = ptype <|> var <|> ann <|> record <|> parens term
+  where factor = ptype <|> var <|> ann
         toPi (Pos pos (Ann (Pos _ (Var a)) c UserGiven)) b = Pos pos $ Pi (Just a) c b
         toPi b c                                           = getPos b $ Pi Nothing b c
-        toDef (Pos pos (Var a)) ts record = [ Pos pos $ Sig a $ foldr toPi record ts
+        name Type = Lam "_" Nothing
+        name (Var x) = Lam x Nothing
+        name (Pos _ x) = name x
+        name (Ann x _ _) = name x
+        toDef (Pos pos (Var a)) ts record = [ --Pos pos $ Def a $ foldr toPi record ts
+                                              Pos pos $ Def a $ foldr (\a b -> name a b) record ts
                                             , Pos pos $ Sig (a<>"_") $ foldr toPi (Pi Nothing record record) ts
                                             , Pos pos $ Def (a<>"_") $ foldr (\_ b -> Lam "_" Nothing b) (Lam "_" Nothing $ Var "_") ts
                                             ]
@@ -399,14 +404,16 @@ record = withPos $ rec <$> (char '{' *> optional (ws *> sigdef)) <*> many (ws *>
 
 -- |
 -- >>> parse recordcon "{ a = Type }"
--- [(*Prod (Just (*Def "a" *Type)) Nothing Nothing,...)]
+-- [(*Prod (Just (*Def "a" *Type)) Nothing,...)]
+--
+-- >>> parse recordcon "{ a = Type, b = Type }"
+-- [(*Prod (Just (*Def "a" *Type)) (Just (Prod (Just (*Def "b" *Type)) Nothing)),...)]
 --
 -- >>> parse recordcon "{}"
--- [(*Prod Nothing Nothing Nothing,...)]
+-- [(*Prod Nothing Nothing,...)]
 recordcon :: Parser Term
 recordcon = withPos $ rec <$> (char '{' *> optional (ws *> valdef)) <*> many (ws *> char ',' *> ws *> valdef) <* ws <* char '}'
   where rec :: Maybe Term -> [Term] -> Term
-        rec Nothing        [] = Prod Nothing Nothing Nothing
-        rec d@(Just _)     [] = Prod d Nothing Nothing
-        rec d@(Just _)    [x] = Prod d (Just x) Nothing
-        rec d@(Just _) (x:xs) = Prod d (Just $ rec (Just x) xs) Nothing
+        rec Nothing        [] = Prod Nothing Nothing
+        rec d@(Just _)     [] = Prod d Nothing
+        rec d@(Just _) (x:xs) = Prod d (Just $ rec (Just x) xs)

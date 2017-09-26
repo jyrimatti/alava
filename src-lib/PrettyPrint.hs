@@ -31,9 +31,9 @@ instance Display Term where
   display (Paren t)                         = "(" <> display t <> ")"
   display (Pos _ t)                         = display t
   display s@(Sigma _ _ _)                   = "{" <> dispS s <> "}"
-  display p@(Prod _ _ ann)                  = "(" <> dispP p <> ")" <> fromMaybe "" (fmap (\x -> ": " <> display x) ann)
+  display p@(Prod _ _)                      = "(" <> dispP p <> ")"
   display (Case a b c)                      = "case " <> display a <> " of\n " <> display b <> " -> " <> display c
-  display a = error $ toList $ show a
+  display a = error $ show a
 
 dispS :: Term -> String
 dispS (Sigma Nothing Nothing Nothing) = ""
@@ -41,6 +41,6 @@ dispS (Sigma ma (Just b) c)           = (fromMaybe "" $ fmap (\a -> show a <> ":
 dispS x                               = display x
 
 dispP :: Term -> String
-dispP (Prod Nothing Nothing _) = ""
-dispP (Prod (Just a) b ann)  = dispP a <> fromMaybe "" (fmap (\x -> ", " <> dispP x) b)
+dispP (Prod Nothing Nothing) = ""
+dispP (Prod (Just a) b)      = dispP a <> fromMaybe "" (fmap (\x -> ", " <> dispP x) b)
 dispP x                      = display x

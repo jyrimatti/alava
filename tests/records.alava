@@ -5,27 +5,35 @@ let
   true : bool
   true = \x. \y. \z. y
 
---  Void : Type
+  false : bool
+  false = \x. \y. \z. z
+
+  if : (b: bool) -> Type -> Type -> Type
+  if = \b . \x . \y . b Type x y
+
+  Void : Type
   Void = {}
 
---  Person : Type
+  Person : Type
   Person = { manager: bool }
 
   T : bool -> Type
-  T = \b. bool
+  T = \b. if b bool Person
 
---  Dependent : Type
+  Dependent : (A: bool) -> (T A) -> Type -> Type
   Dependent (A: bool) (B: (T A)) (C:Type) = { a: C, b: (T A) }
---Dependent (A: bool) (B: Type) (C:Type) = { a: C, b: B }
 
   p : Person
   p = Person_ { manager = true }
 
-  f : Dependent
-  f = Dependent_ true true bool { a = bool, b = true }
+  f : Dependent true true bool
+  f = Dependent_ true true bool { a = true, b = true }
+
+  g : Dependent false p bool
+  g = Dependent_ false p bool { a = true, b = p }
 
   -- record construction using ordered arguments
-  g : Dependent
-  g = Dependent_ true true
+  --g : Dependent
+  --g = Dependent_ true true bool bool true
 in
   bool

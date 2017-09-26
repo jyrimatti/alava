@@ -1,0 +1,44 @@
+-- 'let' creates a block with bindings
+let
+  -- Function signature
+  -- Types must be explicitly given as parameters since no inference yet :(
+  id : (t:Type) -> t -> t
+  -- Function definition
+  id = \t. \x. x
+
+  -- Type definition
+  bool : Type
+  bool = (x : Type) -> x -> x -> x
+
+  true : bool
+  true = \x. \y. \z. y
+
+  -- Function application
+  stillTrue : bool
+  stillTrue = id bool true
+
+  -- Data types:
+
+  -- Empty type. Cannot be constructed.
+  Void : Type
+  Void = {}
+
+  -- Simple record
+  Person : Type
+  Person = { manager: bool }
+
+  -- Record constructor is suffixed with underscore for now, sorry...
+  somePerson : Person
+  somePerson = Person_ { manager = true }
+
+  -- Parameterized record
+  Department : Type -> Type
+  Department (A: Type) = { a: A }
+
+  someDepartment : Department bool
+  someDepartment = Department_ bool { a = true }
+
+
+in
+  -- Result of the 'let' expression
+  bool

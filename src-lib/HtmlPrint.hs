@@ -81,12 +81,12 @@ render (Paren t)                         = wrap "paren" $ keyword "(" <> render 
 render (Pos (SourcePos line col) t)      = span ! dataAttribute "line" (toValue line) ! dataAttribute "column" (toValue col) $ render t
 
 render s@(Sigma _ _ _)                   = wrap "sigma" $ txt "{" <> dispS s <> txt "}"
-render p@(Prod _ _ ann)                  = wrap "prod" $ txt "(" <> dispP p <> txt ")" <> fromMaybe (txt "") (fmap render ann)
+render p@(Prod _ _)                      = wrap "prod" $ txt "(" <> dispP p <> txt ")"
 
 dispS (Sigma Nothing Nothing Nothing) = txt ""
 dispS (Sigma ma (Just b) c)           = (fromMaybe "" $ fmap (\a -> txt a <> txt ": ") ma) <> dispS b <> fromMaybe (txt "") (fmap (\x -> txt ", " <> dispS x) c)
 dispS x                               = render x
 
-dispP (Prod Nothing Nothing _) = txt ""
-dispP (Prod (Just a) b ann)  = dispP a <> fromMaybe (txt "") (fmap (\x -> txt ", " <> dispP x) b)
+dispP (Prod Nothing Nothing) = txt ""
+dispP (Prod (Just a) b)      = dispP a <> fromMaybe (txt "") (fmap (\x -> txt ", " <> dispP x) b)
 dispP x                      = render x

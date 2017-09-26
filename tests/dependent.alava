@@ -1,0 +1,51 @@
+let
+  -- some basic booleans...
+  bool : Type
+  bool = (x : Type) -> x -> x -> x
+
+  true : bool
+  true = \x. \y. \z. y
+
+  false : bool
+  false = \x. \y. \z. z
+
+  if : (b: bool) -> Type -> Type -> Type
+  if = \b . \x . \y . b Type x y
+
+
+  Person : Type
+  Person = { manager: bool }
+
+  jenkins : Person
+  jenkins = Person_ { manager = true }
+
+
+  
+  -- Regular function:
+  id : (t:Type) -> t -> t
+  id = \t. \x. x
+
+  -- Dependent function:
+  boolOrPersonType : bool -> Type
+  boolOrPersonType = \b. if b bool Person
+
+  thisIsABoolean : boolOrPersonType true
+  thisIsABoolean = true
+  
+  thisIsAPerson : boolOrPersonType false
+  thisIsAPerson = jenkins
+  
+
+
+  -- Dependent record:
+  boolOrPersonWrapper : (A: bool) -> Type
+  boolOrPersonWrapper (A: bool) = { boolOrPerson: (if A bool Person) }
+
+  f : boolOrPersonWrapper true
+  f = boolOrPersonWrapper_ true { boolOrPerson = true }
+
+  g : boolOrPersonWrapper false
+  g = boolOrPersonWrapper_ false { boolOrPerson = jenkins }
+
+in
+  bool

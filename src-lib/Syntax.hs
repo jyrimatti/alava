@@ -13,9 +13,9 @@ type DCName = String
 
 type Type = Term
 
-data AnnType = UserGiven | Inferred
-instance Show AnnType where
-    show _ = ""
+data AnnType = UserGiven | Inferred deriving Show
+--instance Show AnnType where
+--    show _ = ""
 
 data Term = 
    -- Core language
@@ -40,7 +40,7 @@ data Term =
 
    | Sigma (Maybe TName) (Maybe Term) (Maybe Term)
     
-   | Prod (Maybe Term) (Maybe Term) (Maybe Type)
+   | Prod (Maybe Term) (Maybe Term)
    | Case Term Term Term
                               
 
@@ -67,7 +67,7 @@ instance Show Term where
   show (Lam a b c) = toList $ "Lam " <> show a <> " " <> paren2 b <> " " <> paren c
   show (App a b)   = toList $ "App " <> paren a <> " " <> paren b
   show (Pi a b c)  = toList $ "Pi " <> print2 a <> " " <> paren b <> " " <> paren c
-  show (Ann a b _) = toList $ "Ann " <> paren a <> " " <> paren b
+  show (Ann a b c) = toList $ "Ann " <> paren a <> " " <> paren b <> " " <> show c
   show (Let a b)   = toList $ "Let " <> show a <> " " <> paren b
   show (Sig a b)   = toList $ "Sig " <> show a <> " " <> paren b
   show (Def a b)   = toList $ "Def " <> show a <> " " <> paren b
@@ -75,7 +75,7 @@ instance Show Term where
   show (Paren a)   = toList $ "Paren " <> paren a
   show (Pos _ b)   = toList $ "*" <> show b
   show (Sigma a b c)     = toList $ "Sigma " <> print2 a <> " " <> print b <> " " <> print c
-  show (Prod a b t) = toList $ "Prod " <> paren2 a <> " " <> paren2 b <> " " <> paren2 t
+  show (Prod a b) = toList $ "Prod " <> paren2 a <> " " <> paren2 b
   show (Case a b c)      = toList $ "Case " <> paren a <> " " <> paren b <> " " <> paren c
 
 data SourcePos = SourcePos Int Int deriving Show

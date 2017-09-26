@@ -1,7 +1,7 @@
 let
 
   bool : Type
-  bool = (x : Type) -> x -> x -> x
+  bool = (xx : Type) -> xx -> xx -> xx
 
   true : bool
   true = \x. \y. \z. y
@@ -10,13 +10,16 @@ let
   false = \x. \y. \z. z
 
   not : bool -> bool
-  not = \b . if b False True
+  not = \b . (((b bool) false) true)
 
   Unit : Type
   Unit = (x : Type) -> x
 
-  if : bool -> (x:Type) -> (y:Type) -> x -> y -> (x|y)
-  if = \b. b
+  RR : (x: Type) -> (y: Type) -> bool -> Type
+  RR = \x . \y . \b . b x y
+
+  if : (x:Type) -> (y:Type) -> (b: bool) -> x -> y -> RR x y b
+  if = \tx . \ty . \b . \x . \y . b x y
 
   and : Type -> Type -> Type
   and = \p. \q. (c: Type) -> (p -> q -> c) -> c
