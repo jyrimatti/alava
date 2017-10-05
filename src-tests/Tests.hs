@@ -20,7 +20,7 @@ import Test.Tasty.HUnit (testCase,assertBool)
 
 import Syntax (SourcePos)
 import Environment (emptyEnv)
-import Equal (Error)
+import Error (Error)
 import SimpleParser (expr,parse)
 import TypeCheck  (inferType)
 

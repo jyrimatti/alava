@@ -1,22 +1,23 @@
-{-# LANGUAGE NoImplicitPrelude, ViewPatterns, TupleSections, OverloadedStrings, DeriveAnyClass #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module TypeCheck where
 
-import Foundation (($),Maybe(Just,Nothing),fst,(<$>),pure,not,fromMaybe,(<>),show,toList,error,(==))
+import Foundation (($),Maybe(Just,Nothing),pure,fromMaybe,(<>),show,toList,String)
 import Foundation.Collection (reverse)
 import Control.Monad (foldM)
 
 import GHC.Stack (HasCallStack)
-import Debug.Trace(trace)
-import Control.Monad.Logger.CallStack
-import Control.Monad.Except
+import Control.Monad.Logger.CallStack (logDebug)
+import Control.Monad.Except (withExceptT,throwError)
 
 import Data.Text (pack)
 
 import qualified Prelude as P
 
 import Syntax (Type,Term(Var,Type,Pi,Lam,App,Ann,Pos,Paren,Let,Sig,Def,Comment,Sigma,Prod),AnnType(Inferred))
-import Environment (Env,lookupTy,extendCtx,updateCtx,extendSourceLocation,emptyEnv)
-import Equal (subst,ResultM,Whnf(Whnf),whnf,err,Error(NotInScope,NotEqual,LambdaMustHaveFunctionType,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedType),equate,ensurePi)
+import Environment (Env,lookupTy,extendCtx,extendSourceLocation)
+import Equal (ResultM,Whnf(Whnf),whnf,equate,ensurePi)
+import Substitution (subst)
+import Error (err, Error(NotInScope,NotEqual,LambdaMustHaveFunctionType,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedType))
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -33,11 +34,12 @@ checkType env term expectedType = do
   tcTerm env term $ Just $ whnf env expectedType
 
 tcType :: HasCallStack => Env -> Term -> ResultM Term
-tcType env tm = withExceptT ((<>) (err $ ExpectedType env tm)) $ do
+tcType env tm = withExceptT ((err $ ExpectedType env tm) <>) $ do
   logDebug $ pack $ toList $ "tcType " <> show tm
   (t,_) <- checkType env tm Type
   pure t
 
+logRet :: String -> Term -> Type -> ResultM (Term, Type)
 logRet str eTerm eType = do
     logDebug $ pack $ toList $ "tcTerm " <> str <> ": returning elaborated term:\n  " <> show eTerm <> "\nand elaborated type:\n  " <> show eType
     pure (eTerm, eType)
@@ -55,7 +57,7 @@ tcTerm env t@(Var x) Nothing = do
 --tcTerm env t@(Ann term _ Inferred) (Just (Whnf ann)) = checkType env term ann
 
 
-tcTerm _ t@(Type) Nothing = do
+tcTerm _ t@Type Nothing = do
   logDebug $ pack $ toList $ "tcTerm " <> show t
   logRet "Type" t Type
 
@@ -70,10 +72,10 @@ tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(Pi _ tyA tyB))) = do
     logDebug $ pack $ toList $ "tcTerm " <> show t <> " " <> show a
     -- check tyA matches type annotation on binder, if present
     ea <- case ma of
-        Just a  -> do
-          res <- equate env tyA a
+        Just aa  -> do
+          res <- equate env tyA aa
           if res then pure tyA
-                 else throwError $ err $ NotEqual env tyA a
+                 else throwError $ err $ NotEqual env tyA aa
         Nothing -> pure tyA
     -- check the type of the body of the lambda expression
     let newEnv     = extendCtx (Sig x ea) env
@@ -83,7 +85,7 @@ tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(Pi _ tyA tyB))) = do
 --tcTerm env t@(Lam "_" s1 s2) (Just (Whnf Type)) = do
 --  todo: --pure (t, Type)
 
-tcTerm env t@(Lam _ _ _) (Just (Whnf nf)) = throwError $ err $ LambdaMustHaveFunctionType env t nf
+tcTerm env t@Lam{} (Just (Whnf nf)) = throwError $ err $ LambdaMustHaveFunctionType env t nf
 
 -- infer the type of a lambda expression, when an annotation
 -- on the binder is present
@@ -102,7 +104,7 @@ tcTerm env t@(App t1 t2) Nothing = do
     (mname, argType, resType) <- ensurePi env ty1
     logDebug $ pack $ toList $ "Checking if application parameter (" <> show t2 <> ") matches function argument type (" <> show argType <> ")"
     (at2, _) <- withExceptT ((<>) $ err $ AppTypesDontMatch env t argType t2) $ checkType env t2 argType
-    let newEnv      = extendCtx (Def (fromMaybe "_" mname) $ at2) $ extendCtx (Sig (fromMaybe "_" mname) $ argType) env
+    let _      = extendCtx (Def (fromMaybe "_" mname) at2) $ extendCtx (Sig (fromMaybe "_" mname) argType) env
     logRet "App" (App at1 at2) $ subst mname at2 resType
 
 tcTerm env t@(Ann tm ty _) Nothing = do
@@ -137,14 +139,14 @@ tcTerm env t@(Let xs body) ann = do
     foo (e,exs)    (Sig n ty) = do
         (ety,_)    <- inferType e ty
         let newEnv = extendCtx (Sig n ety) e
-        pure (newEnv, (Sig n ety):exs)
+        pure (newEnv, Sig n ety : exs)
     --foo a          (Def n (Pos _ x)) = foo a (Def n x)
     foo (e,exs)    (Def name x) = case lookupTy e name of
         Nothing -> throwError $ err $ NotInScope e name
         Just ty -> do
-                    (et2, ety2) <- checkType e x ty
+                    (et2, _) <- checkType e x ty
                     let newEnv2 = extendCtx (Def name et2) e
-                    pure (newEnv2, (Def name et2):exs)
+                    pure (newEnv2, Def name et2 : exs)
   (newEnv, exs)  <- foldM foo (env,[]) xs
   (ebody, etype) <- tcTerm newEnv body ann
   logRet "Let" (Let (reverse exs) ebody) etype
@@ -179,7 +181,7 @@ tcTerm env t@(Sigma (Just x) (Just tyA) Nothing) Nothing = do
   atyA <- tcType env tyA
   logRet "Sigma2" (Sigma (Just x) (Just atyA) Nothing) Type
 
-tcTerm env t@(Sigma Nothing Nothing Nothing) Nothing = do
+tcTerm _ t@(Sigma Nothing Nothing Nothing) Nothing = do
   logDebug $ pack $ toList $ "tcTerm " <> show t
   logRet "Sigma3" t Type
 
@@ -187,69 +189,12 @@ tcTerm env t@(Prod (Just a) b) ann@(Just (Whnf w@(Sigma _ (Just aa) bb))) = do
   logDebug $ pack $ toList $ "tcTerm " <> show t <> show ann
   (ea,tyA) <- checkType env a aa
   (meb, mtyB) <- case (b,bb) of
-      (Just b, Just bb)  -> do
-        (eb, tyB) <- checkType env b bb
+      (Just c, Just cc)  -> do
+        (eb, tyB) <- checkType env c cc
         pure (Just eb, Just tyB)
       (Nothing, Nothing) -> pure (Nothing,Nothing)
       _                  -> throwError $ err $ NotEqual env t w
   logRet "Prod5" (Prod (Just ea) meb) (Sigma Nothing (Just tyA) mtyB)
-
-{-
-tcTerm env t@(Prod Nothing Nothing Nothing) Nothing = do
-  logDebug $ pack $ toList $ "tcTerm " <> show t
-  logRet "Prod1" (Prod Nothing Nothing (Just (Sigma Nothing Nothing Nothing))) (Sigma Nothing Nothing Nothing)
-
-
-tcTerm env t@(Prod (Just a) Nothing mt) Nothing = do
-  logDebug $ pack $ toList $ "tcTerm " <> show t
-  (ea,tyA) <- inferType env a
-  let ann = Sigma Nothing (Just tyA) Nothing
-  et <- case mt of
-        Just aa -> do
-          res <- equate env ann aa 
-          if res then pure ann
-                 else throwError $ err $ NotEqual env ann aa
-        Nothing -> pure ann
-  logRet "Prod2" (Prod (Just ea) Nothing (Just et)) et
-
-tcTerm env t@(Prod (Just a) Nothing mt) aa@(Just (Whnf ann@(Sigma _ (Just aaa) Nothing))) = do
-  logDebug $ pack $ toList $ "tcTerm " <> show t <> show aa
-  (ea,tyA) <- checkType env a aaa
-  et <- case mt of
-        Just aa -> do
-          res <- equate env ann aa
-          if res then pure ann
-                 else throwError $ err $ NotEqual env ann aa
-        Nothing -> pure ann
-  logRet "Prod3" (Prod (Just ea) Nothing (Just et)) et
-
-tcTerm env t@(Prod (Just a@(Pos _ (Def x _))) ann@(Just b) mt) Nothing = do
-  logDebug $ pack $ toList $ "tcTerm " <> show t <> show ann
-  (ea,tyA) <- inferType env a
-  (eb,tyB) <- inferType (extendCtx (Sig x tyA) env) b
-  let ann = Sigma Nothing (Just tyA) (Just tyB)
-  et <- case mt of
-        Just aa -> do
-          res <- equate env ann aa
-          if res then pure ann
-                 else throwError $ err $ NotEqual env ann aa
-        Nothing -> pure ann
-  logRet "Prod4" (Prod (Just ea) (Just eb) (Just et)) et
-
-tcTerm env t@(Prod (Just a@(Pos _ (Def x _))) (Just b) mt) aa@(Just (Whnf ann@(Sigma _ (Just aaa) (Just bbb)))) = do
-  logDebug $ pack $ toList $ "tcTerm " <> show t <> show aa
-  (ea,tyA) <- checkType env a aaa
-  (eb,tyB) <- checkType (extendCtx (Sig x tyA) env) b bbb
-  et <- case mt of
-        Just aa -> do
-          res <- equate env ann aa
-          if res then pure ann
-                 else throwError $ err $ NotEqual env ann aa
-        Nothing -> pure ann
-  logRet "Prod5" (Prod (Just ea) (Just eb) (Just et)) et
-  -}
-
---tcTerm t@(Pcase p bnd ann1) ann2 = err [DS "unimplemented"]
       
 tcTerm env tm a@(Just (Whnf ty)) = do
   logDebug $ pack $ toList $ "tcTerm " <> show tm <> show a
@@ -259,4 +204,4 @@ tcTerm env tm a@(Just (Whnf ty)) = do
     if res then logRet "_" atm ty
            else throwError $ err $ TypesDontMatch env tm ty' ty
                          
-tcTerm env tm tt = P.error $ toList $ "(" <> show tm <> ") (" <> show tt <> ")"
+tcTerm _ tm tt = P.error $ toList $ "(" <> show tm <> ") (" <> show tt <> ")"

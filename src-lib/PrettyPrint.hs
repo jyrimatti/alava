@@ -2,10 +2,7 @@
 
 module PrettyPrint where
 
-import Foundation (String,Maybe(Just,Nothing),(<>),fmap,($),fromMaybe, error, show, toList)
-import Foundation.Collection (intercalate)
-
-import Debug.Trace (trace)
+import Foundation (String,Maybe(Just,Nothing),(<>),show,maybe)
 
 import Data.Foldable (foldMap)
 
@@ -30,17 +27,16 @@ instance Display Term where
   display (Comment text)                    = "{-" <> text <> "-}\n"
   display (Paren t)                         = "(" <> display t <> ")"
   display (Pos _ t)                         = display t
-  display s@(Sigma _ _ _)                   = "{" <> dispS s <> "}"
+  display s@Sigma{}                         = "{" <> dispS s <> "}"
   display p@(Prod _ _)                      = "(" <> dispP p <> ")"
   display (Case a b c)                      = "case " <> display a <> " of\n " <> display b <> " -> " <> display c
-  display a = error $ show a
 
 dispS :: Term -> String
 dispS (Sigma Nothing Nothing Nothing) = ""
-dispS (Sigma ma (Just b) c)           = (fromMaybe "" $ fmap (\a -> show a <> ": ") ma) <> dispS b <> fromMaybe "" (fmap (\x -> ", " <> dispS x) c)
+dispS (Sigma ma (Just b) c)           = maybe "" (\a -> show a <> ": ") ma <> dispS b <> maybe "" (\x -> ", " <> dispS x) c
 dispS x                               = display x
 
 dispP :: Term -> String
 dispP (Prod Nothing Nothing) = ""
-dispP (Prod (Just a) b)      = dispP a <> fromMaybe "" (fmap (\x -> ", " <> dispP x) b)
+dispP (Prod (Just a) b)      = dispP a <> maybe "" (\x -> ", " <> dispP x) b
 dispP x                      = display x

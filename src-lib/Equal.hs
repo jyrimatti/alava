@@ -1,12 +1,10 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, OverloadedLists, DeriveFunctor, DeriveAnyClass #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, OverloadedLists #-}
 module Equal where
 
-import Foundation (($),Functor,fmap,pure,(<*>),(>>=),(<>),Applicative,Monad,String,Show,show,Monoid,Bool(True,False),(==),(&&),Either,Maybe(Just,Nothing),(<),(>),Ordering(LT,EQ,GT),error,toList,fromMaybe,IO)
-import Foundation.Collection (sortBy, intercalate)
+import Foundation (($),pure,(<>),String,Show,show,Bool(True,False),(==),(&&),Maybe(Just,Nothing),(<),(>),Ordering(LT,EQ,GT),error,toList,IO,otherwise,uncurry)
+import Foundation.Collection (sortBy)
 
-import qualified Prelude as P
-import Debug.Trace(trace)
-import Control.Monad.Logger.CallStack
+import Control.Monad.Logger.CallStack (LoggingT,logDebug)
 
 import GHC.Stack (HasCallStack)
 
@@ -14,126 +12,16 @@ import Data.Foldable (all,foldl)
 import Data.List (zip)
 import Data.Text (pack)
 
-import Control.Monad.Morph
-import Control.Monad.Logger.CallStack
-import Control.Monad.Except
+import Control.Monad.Morph ()
+import Control.Monad.Logger.CallStack ()
+import Control.Monad.Except (ExceptT,throwError)
 
-import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Paren,Let,Def,Sig,Sigma,Prod,Pos,Comment),SourcePos,Type,TName,AnnType(Inferred))
-import Environment (Env,getSourceLocation,lookupDef,lookupTy,extendCtx)
-import PrettyPrint (display)
-
-unlines :: [String] -> P.String
-unlines xs = toList $ intercalate "\n" xs
-
-data Error = NotInScope Env String
-           | NotEqual Env Type Type
-           | LambdaMustHaveFunctionType Env Term Type
-           | ExpectedFunctionType Env Term Type
-           | ExpectedType Env Term
-           | TypesDontMatch Env Term Type Type
-           | AppTypesDontMatch Env Term Type Type
-           | CouldNotInferType Env Term
-           | RequiresTypeAnnotation Env Term
-
-getEnv (NotInScope e _) = e
-getEnv (NotEqual e _ _) = e
-getEnv (LambdaMustHaveFunctionType e _ _) = e
-getEnv (ExpectedFunctionType e _ _)= e
-getEnv (ExpectedType e _)= e
-getEnv (TypesDontMatch e _ _ _) = e
-getEnv (AppTypesDontMatch e _ _ _) = e
-getEnv (CouldNotInferType e _) = e
-getEnv (RequiresTypeAnnotation e _) = e
-
-instance Show Error where
-  show (NotInScope env var) = unlines
-    ["Not in scope:"
-    ,"  " <> var
-    ,"Env:"
-    ,show env
-    ]
-  show (NotEqual env expected actual) = unlines
-    ["Types don't match."
-    ,"Expected:"
-    ,"  " <> display expected <> "   ... " <> show expected
-    ,"Actual:"
-    ,"  " <> display expected <> "   ... " <> show actual
-    ,"Env:"
-    ,show env
-    ]
-  show (LambdaMustHaveFunctionType env term t) = unlines
-    ["A lambda:"
-    ,"  " <> display term <> "   ... " <> show term
-    ," was expected to have a function type, but instead had:"
-    ,"  " <> display t <> "   ... " <> show t
-    ,"Env:"
-    ,show env
-    ]
-  show (ExpectedFunctionType env term typ) = unlines
-    ["Expected a function type for:"
-    ,"  " <> display term <> "   ... " <> show term
-    ,"but instead was:"
-    ,"  " <> display typ <> "   ... " <> show typ
-    ,"Env:"
-    ,show env
-    ]
-  show (ExpectedType env term) = unlines
-    ["Expected Type for:"
-    ,"  " <> display term <> "   ... " <> show term
-    ,"Env:"
-    ,show env
-    ]
-  show (TypesDontMatch env term actual expected) = unlines
-    ["Types don't match for term:"
-    ,"  " <> display term <> "   ... " <> show term
-    ,"Expected:"
-    ,"  " <> display expected <> "   ... " <> show expected
-    ,"Actual:"
-    ,"  " <> display actual <> "   ... " <> show actual
-    ,"Env:"
-    ,show env
-    ]
-  show (AppTypesDontMatch env term expected actual) = unlines
-    ["Application argument type doesn't match the type of the function in:"
-    ,"  " <> display term <> "   ... " <> show term
-    ,"Expected argument type:"
-    ,"  " <> display expected <> "   ... " <> show expected
-    ,"Actual: parameter type"
-    ,"  " <> display actual <> "   ... " <> show actual
-    ,"Env:"
-    ,show env
-    ]
-  show (CouldNotInferType env term) = unlines
-    ["Could not infer type for:"
-    ,"  " <> display term <> "   ... " <> show term
-    ,"Env:"
-    ,show env
-    ]
-
---instance Functor Result where
-  --fmap f (Success a) = Success (f a)
-  --fmap _ (Failure es) = Failure es
-
---instance Applicative Result where
-  --pure = Success
-  --Success f <*> r = fmap f r
-  --Failure e1 <*> Failure e2 = Failure $ e1 <> e2
-  --Failure es <*> _ = Failure es
-
---instance Monad Result where
-  --Success a >>= f = f a
-  --Failure es >>= _ = Failure es
+import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Paren,Let,Def,Sig,Sigma,Prod,Pos),SourcePos,Type,TName)
+import Environment (Env,lookupDef,extendCtx)
+import Substitution (subst)
+import Error(Error(ExpectedFunctionType),err)
 
 type ResultM = ExceptT [(Error,SourcePos)] (LoggingT IO)
-
-err :: Error -> [(Error,SourcePos)]
-err e = [(e, getSourceLocation (getEnv e))]
-
---with :: [(Error, SourcePos)] -> ResultM t -> ResultM t
---with es rm = do
---  lift $ case rm of
---    (Failure e) -> Failure $ es <> e
---    _           -> error "Should not be here"
 
 equate :: HasCallStack => Env -> Term -> Term -> ResultM Bool
 equate env t1 t2 = do
@@ -144,14 +32,17 @@ equate_ :: HasCallStack => Env -> Term -> Term -> Bool
 equate_ env t1 t2 = let
   n1 = whnf' env False t1  
   n2 = whnf' env False t2
-  o (Def x1 _) (Def x2 _) = if x1 < x2 then LT else if x1 > x2 then GT else EQ
+  o (Def x1 _) (Def x2 _)
+    | x1 < x2 = LT
+    | x1 > x2 = GT
+    | otherwise = EQ
   recEquate :: HasCallStack => String -> Term -> Bool
   recEquate x n = case lookupDef env x of 
            Just d -> equate_ env d n
            Nothing -> error $ "Expected: " <> show n <> " , found: " <> show (Var x) <> " , env: " <> show env
-  equateMaybe _ Nothing Nothing     = True
-  equateMaybe env (Just a) (Just b) = equate_ env a b
-  equateMaybe _ _ _                 = False
+  equateMaybe Nothing Nothing   = True
+  equateMaybe (Just a) (Just b) = equate_ env a b
+  equateMaybe _ _               = False
   in case (n1, n2) of
     (Type, Type)                     -> True
     (Var x, Var y)                   -> x == y
@@ -164,9 +55,9 @@ equate_ env t1 t2 = let
     (at1, Ann _ at2 _)               -> equate_ env at1 at2
     (Paren at1, at2)                 -> equate_ env at1 at2
     (at1, Paren at2)                 -> equate_ env at1 at2
-    (Let xs1 body1, Let xs2 body2)   -> equate_ env body1 body2 && (all (\(x1,x2) -> equate_ env x1 x2) $ zip (sortBy o xs1) (sortBy o xs2))
-    (Sigma _ tyA1 tyB1, Sigma _ tyA2 tyB2) -> equateMaybe env tyA1 tyA2 && equateMaybe env tyB1 tyB2
-    (Prod a1 a2, Prod b1 b2)         -> equateMaybe env a1 b1 && equateMaybe env a2 b2
+    (Let xs1 body1, Let xs2 body2)   -> equate_ env body1 body2 && all (uncurry (equate_ env)) (zip (sortBy o xs1) (sortBy o xs2))
+    (Sigma _ tyA1 tyB1, Sigma _ tyA2 tyB2) -> equateMaybe tyA1 tyA2 && equateMaybe tyB1 tyB2
+    (Prod a1 a2, Prod b1 b2)         -> equateMaybe a1 b1 && equateMaybe a2 b2
     (Var x, _)                       -> recEquate x n2
     (_, Var x)                       -> recEquate x n1
     (Pos _ _,_)                      -> error "No pos"
@@ -175,24 +66,10 @@ equate_ env t1 t2 = let
 
 ensurePi :: HasCallStack => Env -> Type -> ResultM (Maybe TName, Type, Type)
 ensurePi env ty = case whnf env ty of 
-    Whnf (Pi mname tyA tyB) -> pure $ (mname, tyA, tyB)
+    Whnf (Pi mname tyA tyB) -> pure (mname, tyA, tyB)
     Whnf nf -> throwError $ err $ ExpectedFunctionType env ty nf
 
--- poor man's substitution, for now...
-subst Nothing param x = x
-subst (Just name) param (Ann x y z) = Ann (subst (Just name) param x) (subst (Just name) param y) z
-subst (Just name) param Type = Type
-subst (Just name) param (Var x) | x == name = param
-subst (Just name) param x@(Var _) = x
-subst (Just name) param (App x y) = App (subst (Just name) param x) (subst (Just name) param y)
-subst (Just name) param (Pi x y z) = Pi x (subst (Just name) param y) (subst (Just name) param z)
-subst (Just name) param (Lam x Nothing z) = Lam x Nothing (subst (Just name) param z)
-subst (Just name) param (Lam x (Just y) z) = Lam x (Just (subst (Just name) param y)) (subst (Just name) param z)
-subst (Just name) param s@(Sigma x Nothing Nothing) = s
-subst (Just name) param (Sigma x (Just y) Nothing) = Sigma x (Just (subst (Just name) param y)) Nothing
-subst (Just name) param (Sigma x (Just y) (Just z)) = Sigma x (Just (subst (Just name) param y)) (Just (subst (Just name) param z))
-subst _ _ x@(Comment _) = x
-subst a b c = error $ "subst: " <> show a <> " " <> show b <> " " <> show c
+
 
 newtype Whnf = Whnf Term deriving Show
 

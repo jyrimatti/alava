@@ -1,21 +1,17 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module Syntax where
 
-import Foundation (($),String,Int,Maybe(Just,Nothing),Show,show,toList,(<>),fmap)
-import Foundation.Collection (intercalate)
+import Foundation (($),String,Int,Maybe(Just,Nothing),Show,show,toList,(<>))
 
 import qualified Prelude as P
 
 type TName = String
 
-type TCName = String
-type DCName = String
-
 type Type = Term
 
 data AnnType = UserGiven | Inferred deriving Show
---instance Show AnnType where
---    show _ = ""
+
+data SourcePos = SourcePos Int Int deriving Show
 
 data Term = 
    -- Core language
@@ -77,5 +73,3 @@ instance Show Term where
   show (Sigma a b c)     = toList $ "Sigma " <> print2 a <> " " <> print b <> " " <> print c
   show (Prod a b) = toList $ "Prod " <> paren2 a <> " " <> paren2 b
   show (Case a b c)      = toList $ "Case " <> paren a <> " " <> paren b <> " " <> paren c
-
-data SourcePos = SourcePos Int Int deriving Show

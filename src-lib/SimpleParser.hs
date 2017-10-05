@@ -1,12 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude, DeriveFunctor, GeneralizedNewtypeDeriving, ScopedTypeVariables, OverloadedStrings, GADTs #-}
 module SimpleParser where
 
-import Foundation(($),(.),(+),String,fromList,toList,Char,Bool(True,False),Maybe(Just,Nothing),Functor(fmap),not,(||),(&&),(==),(/=),elem,error,show,(<>))
-import Foundation.Collection (uncons,filter,foldr,reverse)
+import Foundation(($),(.),(+),String,fromList,toList,Char,Bool,Maybe(Just,Nothing),Functor(fmap),not,(||),(&&),(==),(/=),elem,(<>),uncons,foldr,foldl',filter,notElem)
 
 import Control.Applicative (Applicative,Alternative(empty,(<|>)),pure,some,many,(<*>),(*>),(<*),(<$>),optional)
-import Data.Traversable (sequenceA)
-import Data.Foldable (foldl1,foldl)
+import Data.Traversable (traverse)
 import Data.Char (isSpace)
 import Data.Monoid (Monoid,mconcat,mempty)
 
@@ -103,7 +101,7 @@ notChar c = eat (/= c)
 -- >>> parse (text "a") "ab"
 -- [("a","b",...)]
 text :: String -> Parser String
-text = fmap fromList . sequenceA . fmap char . toList
+text = fmap fromList . traverse char . toList
 
 -- |
 -- >>> parse newline "\n"
@@ -220,7 +218,7 @@ term = pi
 -- >>> parse app "x (y z)"
 -- [(*App (*Var "x") (Paren (*App (*Var "y") (*Var "z"))),"",...)]
 app :: Parser Term
-app = foldl toApp <$> factor <*> many (wsNoNewline *> factor)
+app = foldl' toApp <$> factor <*> many (wsNoNewline *> factor)
   where factor = ptype <|> var <|> record <|> recordcon <|> parens term
         toApp a = getPos a . App a
 
@@ -246,7 +244,7 @@ ptype = withPos $ text "Type" *> pure Type
 -- >>> parse var "Type"
 -- []
 var :: Parser Term
-var = withPos $ Var . fromList <$> (Parser $ \input pos -> filter (\(ident,_,_) -> not $ elem ident reservedWords) $ parseWithPos (some (eat isIdentifierChar)) input pos)
+var = withPos $ Var . fromList <$> (Parser $ \input pos -> filter (\(ident,_,_) -> (ident `notElem` reservedWords)) $ parseWithPos (some (eat isIdentifierChar)) input pos)
 
 ann :: Parser Term
 ann = withPos $ Ann <$> (char '(' *> ws *> var <* ws <* char ':' <* ws)
@@ -271,8 +269,8 @@ ann = withPos $ Ann <$> (char '(' *> ws *> var <* ws <* char ':' <* ws)
 lam :: Parser Term
 lam = toLam <$> (char '\\' *> many (wsNoNewline *> (var <|> ann)))
             <*> (ws *> char '.' *> ws *> term)
-  where toLam ((Pos pos (Var a)):as) c                           = Pos pos $ Lam a Nothing $ toLam as c
-        toLam ((Pos pos (Ann (Pos _ (Var a)) b UserGiven)):as) c = Pos pos $ Lam a (Just b) $ toLam as c
+  where toLam (Pos pos (Var a) : as) c                           = Pos pos $ Lam a Nothing $ toLam as c
+        toLam (Pos pos (Ann (Pos _ (Var a)) b UserGiven) : as) c = Pos pos $ Lam a (Just b) $ toLam as c
         toLam [] c = c
 
 -- |
@@ -303,8 +301,8 @@ pi :: Parser Term
 pi = foldr toPi <$> factor1 <*> many (ws *> factor2)
   where factor1 = ws *> (plet <|> lam <|> app <|> ann <|> var <|> ptype <|> record <|> recordcon <|> parens term)
         factor2 = ws *> text "->" *> ws *> term
-        toPi b c@(Pos pos (Ann (Pos _ (Var a)) cc UserGiven)) = getPos c $ Pi (Just a) cc b
-        toPi b c                                              = getPos c $ Pi Nothing c b
+        toPi b c@(Pos _ (Ann (Pos _ (Var a)) cc UserGiven)) = getPos c $ Pi (Just a) cc b
+        toPi b c                                            = getPos c $ Pi Nothing c b
 
 -- |
 -- >>> parse valdef "a = b"
@@ -334,9 +332,9 @@ recorddef = toDef <$> var <*> many (ws *> factor) <* (ws <* char '=' <* ws) <*> 
         name (Var x) = Lam x Nothing
         name (Pos _ x) = name x
         name (Ann x _ _) = name x
-        toDef (Pos pos (Var a)) ts record = [ --Pos pos $ Def a $ foldr toPi record ts
-                                              Pos pos $ Def a $ foldr (\a b -> name a b) record ts
-                                            , Pos pos $ Sig (a<>"_") $ foldr toPi (Pi Nothing record record) ts
+        toDef (Pos pos (Var a)) ts rec = [ --Pos pos $ Def a $ foldr toPi rec ts
+                                              Pos pos $ Def a $ foldr name rec ts
+                                            , Pos pos $ Sig (a<>"_") $ foldr toPi (Pi Nothing rec rec) ts
                                             , Pos pos $ Def (a<>"_") $ foldr (\_ b -> Lam "_" Nothing b) (Lam "_" Nothing $ Var "_") ts
                                             ]
         --lamChain r (Sigma Nothing Nothing Nothing) []             = Prod Nothing Nothing (Just r)
