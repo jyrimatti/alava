@@ -1,11 +1,16 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module Syntax where
 
-import Foundation (($),String,Int,Maybe(Just,Nothing),Show,show,toList,(<>))
+import Foundation (($),(.),Int,Maybe(Just,Nothing),toList,(<>))
+import Data.Text.Lazy (Text,pack)
 
-import qualified Prelude as P
+import Prelude (Show)
+import qualified Prelude as P (show)
 
-type TName = String
+show :: Show a => a -> Text
+show = pack . P.show
+
+type TName = Text
 
 type Type = Term
 
@@ -30,7 +35,7 @@ data Term =
    | Def TName Term
 
    -- Syntactic conveniences
-   | Comment String
+   | Comment Text
    | Paren Term
    | Pos SourcePos Term
 
@@ -40,20 +45,20 @@ data Term =
    | Case Term Term Term
                               
 
-paren :: Term -> String
+paren :: Term -> Text
 paren t@Type = show t
 paren t@(Pos _ Type) = show t
 paren t = "(" <> show t <> ")"
 
-paren2 :: Maybe Term -> String
+paren2 :: Maybe Term -> Text
 paren2 Nothing = "Nothing"
 paren2 (Just t)  = "(Just " <> paren t <> ")"
 
-print :: Maybe Term -> String
+print :: Maybe Term -> Text
 print Nothing = "Nothing"
 print (Just a) = "(Just " <> paren a <> ")"
 
-print2 :: Show a => Maybe a -> String
+print2 :: Show a => Maybe a -> Text
 print2 Nothing = "Nothing"
 print2 (Just a) = "(Just " <> show a <> ")"
 

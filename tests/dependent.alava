@@ -41,11 +41,43 @@ let
   boolOrPersonWrapper : (A: bool) -> Type
   boolOrPersonWrapper (A: bool) = { boolOrPerson: (if A bool Person) }
 
-  f : boolOrPersonWrapper true
-  f = boolOrPersonWrapper_ true { boolOrPerson = true }
+  ff : boolOrPersonWrapper true
+  ff = boolOrPersonWrapper_ true { boolOrPerson = true }
 
-  g : boolOrPersonWrapper false
-  g = boolOrPersonWrapper_ false { boolOrPerson = jenkins }
+  gg : boolOrPersonWrapper false
+  gg = boolOrPersonWrapper_ false { boolOrPerson = jenkins }
 
+
+
+
+  -- dependent vector
+
+  Unit : Type
+  Unit = {}
+
+  Nat : Type
+  Nat = (x : Type) -> (x -> x) -> x -> x
+
+  zero : Nat
+  zero = \t. \f. \x. x
+
+  isZero : Nat -> bool
+  isZero = \n. n bool (\f. false) true
+
+  one : Nat
+  one = \t. \f. \x. f x
+
+  two : Nat
+  two = \t. \f. \x. f (f x)
+
+  pred : Nat -> Nat
+  pred = \n. \x. \f. \xx. n ((x->x) -> x) (\g. \h. h (g f)) (\u. xx) (\u. u) 
+
+  Vector : Nat -> Type -> Type
+  Vector (length: Nat) (E:Type) = { head: (if (isZero length) Unit E), tail: (if (isZero length) Unit (Vector (pred length) E)) }
+
+  emptyVec : Vector zero Unit 
+  emptyVec = Vector_ { head = Unit_, tail = Unit_ }
 in
+
   bool

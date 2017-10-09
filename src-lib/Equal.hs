@@ -1,16 +1,19 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, OverloadedLists #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, OverloadedLists, BangPatterns #-}
 module Equal where
 
-import Foundation (($),pure,(<>),String,Show,show,Bool(True,False),(==),(&&),Maybe(Just,Nothing),(<),(>),Ordering(LT,EQ,GT),error,toList,IO,otherwise,uncurry)
+import Foundation (($),(.),pure,(<>),Bool(True,False),(==),(&&),Maybe(Just,Nothing),(<),(>),Ordering(LT,EQ,GT),IO,otherwise,uncurry)
 import Foundation.Collection (sortBy)
 
-import Control.Monad.Logger.CallStack (LoggingT,logDebug)
+import Prelude (Show)
+import qualified Prelude as P (show,error)
+
+import Control.Monad.Logger.CallStack (LoggingT,logDebug,MonadLogger)
 
 import GHC.Stack (HasCallStack)
 
 import Data.Foldable (all,foldl)
 import Data.List (zip)
-import Data.Text (pack)
+import Data.Text.Lazy (Text,pack,unpack,toStrict)
 
 import Control.Monad.Morph ()
 import Control.Monad.Logger.CallStack ()
@@ -21,12 +24,17 @@ import Environment (Env,lookupDef,extendCtx)
 import Substitution (subst)
 import Error(Error(ExpectedFunctionType),err)
 
-type ResultM = ExceptT [(Error,SourcePos)] (LoggingT IO)
+show :: Show a => a -> Text
+show = pack . P.show
 
-equate :: HasCallStack => Env -> Term -> Term -> ResultM Bool
+type ResultM = ExceptT [(Error,SourcePos)]
+
+equate :: (MonadLogger m, HasCallStack) => Env -> Term -> Term -> ResultM m Bool
 equate env t1 t2 = do
-  logDebug $ pack $ toList $ "Equating\n  " <> show t1 <> "\n  " <> show t2
-  pure $ equate_ env t1 t2
+  logDebug $ toStrict $ "Equating\n  " <> show t1 <> "\n  " <> show t2
+  !ret <- pure $ equate_ env t1 t2
+  logDebug "Equating done"
+  pure ret
 
 equate_ :: HasCallStack => Env -> Term -> Term -> Bool
 equate_ env t1 t2 = let
@@ -36,10 +44,10 @@ equate_ env t1 t2 = let
     | x1 < x2 = LT
     | x1 > x2 = GT
     | otherwise = EQ
-  recEquate :: HasCallStack => String -> Term -> Bool
+  recEquate :: HasCallStack => Text -> Term -> Bool
   recEquate x n = case lookupDef env x of 
            Just d -> equate_ env d n
-           Nothing -> error $ "Expected: " <> show n <> " , found: " <> show (Var x) <> " , env: " <> show env
+           Nothing -> P.error $ unpack $ "Expected: " <> show n <> " , found: " <> show (Var x) <> " , env: " <> show env
   equateMaybe Nothing Nothing   = True
   equateMaybe (Just a) (Just b) = equate_ env a b
   equateMaybe _ _               = False
@@ -60,11 +68,11 @@ equate_ env t1 t2 = let
     (Prod a1 a2, Prod b1 b2)         -> equateMaybe a1 b1 && equateMaybe a2 b2
     (Var x, _)                       -> recEquate x n2
     (_, Var x)                       -> recEquate x n1
-    (Pos _ _,_)                      -> error "No pos"
-    (_, Pos _ _)                     -> error "No pos"
+    (Pos _ _,_)                      -> P.error "No pos"
+    (_, Pos _ _)                     -> P.error "No pos"
     (_,_)                            -> False
 
-ensurePi :: HasCallStack => Env -> Type -> ResultM (Maybe TName, Type, Type)
+ensurePi :: (MonadLogger m, HasCallStack) => Env -> Type -> ResultM m (Maybe TName, Type, Type)
 ensurePi env ty = case whnf env ty of 
     Whnf (Pi mname tyA tyB) -> pure (mname, tyA, tyB)
     Whnf nf -> throwError $ err $ ExpectedFunctionType env ty nf
@@ -108,8 +116,8 @@ whnf' env b (Let xs body) = let
 
 --whnf' env b (Paren t) = whnf' env b t
 
-whnf' _ _ t@(Ann _ _ _) = error $ "Unexpected arg to whnf: " <> show t
-whnf' _ _ t@(Paren _)   = error $ "Unexpected arg to whnf: " <> show t
-whnf' _ _ t@(Pos _ _)   = error $ "Unexpected arg to whnf: " <> show t
+whnf' _ _ t@(Ann _ _ _) = P.error $ unpack $ "Unexpected arg to whnf: " <> show t
+whnf' _ _ t@(Paren _)   = P.error $ unpack $ "Unexpected arg to whnf: " <> show t
+whnf' _ _ t@(Pos _ _)   = P.error $ unpack $ "Unexpected arg to whnf: " <> show t
 
 whnf' _ _ tm = tm

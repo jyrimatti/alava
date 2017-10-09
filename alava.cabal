@@ -20,7 +20,7 @@ Executable main
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wmissing-import-lists
   main-is: Main.hs
   hs-source-dirs: src-exe
-  build-depends: alava, base >4.9.0, foundation, text
+  build-depends: alava, base >4.9.0, foundation, text, blaze-html, monad-logger
 
 Executable jsmain
   default-language: Haskell2010
@@ -28,7 +28,7 @@ Executable jsmain
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates -Wmissing-import-lists
   main-is: Main.hs
   hs-source-dirs: src-js
-  build-depends: alava, base >4.9.0, blaze-markup, blaze-html, foundation, ghcjs-dom, clay, ghcjs-ajax, async-ajax, text
+  build-depends: alava, base >4.9.0, blaze-markup, blaze-html, foundation, ghcjs-dom, clay, ghcjs-ajax, async-ajax, text, monad-logger
   if impl(ghcjs)
       build-depends: ghcjs-base
   else

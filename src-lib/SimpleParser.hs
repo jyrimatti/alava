@@ -1,10 +1,11 @@
 {-# LANGUAGE NoImplicitPrelude, DeriveFunctor, GeneralizedNewtypeDeriving, ScopedTypeVariables, OverloadedStrings, GADTs #-}
 module SimpleParser where
 
-import Foundation(($),(.),(+),String,fromList,toList,Char,Bool,Maybe(Just,Nothing),Functor(fmap),not,(||),(&&),(==),(/=),elem,(<>),uncons,foldr,foldl',filter,notElem)
+import Foundation(($),(.),(+),fromList,toList,Char,Bool,Maybe(Just,Nothing),Functor(fmap),not,(||),(&&),(==),(/=),elem,(<>),foldr,foldl',filter,notElem)
 
 import Control.Applicative (Applicative,Alternative(empty,(<|>)),pure,some,many,(<*>),(*>),(<*),(<$>),optional)
 import Data.Traversable (traverse)
+import Data.Text.Lazy (Text,uncons)
 import Data.Char (isSpace)
 import Data.Monoid (Monoid,mconcat,mempty)
 
@@ -15,9 +16,9 @@ import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Prod,S
 -- $setup
 -- >>> :set -XOverloadedStrings
 
-newtype Parser thing = Parser {parseWithPos :: String -> SourcePos -> [(thing, String, SourcePos)]} deriving (Functor,Monoid)
+newtype Parser thing = Parser {parseWithPos :: Text -> SourcePos -> [(thing, Text, SourcePos)]} deriving (Functor,Monoid)
 
-parse :: Parser thing -> String -> [(thing, String, SourcePos)]
+parse :: Parser thing -> Text -> [(thing, Text, SourcePos)]
 parse p input = parseWithPos p input (SourcePos 1 1)
 
 instance Applicative Parser where
@@ -53,7 +54,7 @@ getPos (Sigma _ (Just b) _) = getPos b
 getPos (Prod (Just a) _) = getPos a
 getPos (Case a _ _) = getPos a
 
-reservedChars :: String
+reservedChars :: [Char]
 reservedChars = ".,-{}():=\\>"
 
 reservedWords :: [[Char]]
@@ -100,7 +101,7 @@ notChar c = eat (/= c)
 --
 -- >>> parse (text "a") "ab"
 -- [("a","b",...)]
-text :: String -> Parser String
+text :: Text -> Parser Text
 text = fmap fromList . traverse char . toList
 
 -- |
@@ -112,7 +113,7 @@ text = fmap fromList . traverse char . toList
 --
 -- >>> parse newline "x"
 -- []
-newline :: Parser String
+newline :: Parser Text
 newline = fmap fromList $ some $ char '\n'
 
 -- |
@@ -124,7 +125,7 @@ newline = fmap fromList $ some $ char '\n'
 --
 -- >>> parse whitespace " a"
 -- [(" ","a",...)]
-whitespace :: Parser String
+whitespace :: Parser Text
 whitespace = fmap fromList $ many $ eat isSpace
 
 -- |

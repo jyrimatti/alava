@@ -1,40 +1,48 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module Main where
 
-import Foundation (($),show,getArgs,putStrLn,fst,IO,(<$>),fromString,Either(Left,Right),String,fmap,(<>))
+import Foundation (($),(.),getArgs,fst,IO,(<$>),Either(Left,Right),fmap,(<>),toList)
 import Foundation.IO (readFile)
 import Foundation.VFS ()
 import Foundation.VFS.FilePath (unsafeFilePath,unsafeFileName,Relativity(Relative))
 import Foundation.String (toBytes,Encoding(UTF8),fromBytes)
 
-import Data.Text.Lazy (unpack)
-import Control.Monad (mapM_)
+import Control.Monad.Logger (runStdoutLoggingT)
 
-import qualified Prelude as P
+import Data.Text.Lazy (Text,pack)
+import Data.Text.Lazy.IO (putStrLn)
+import Control.Monad (mapM_)
+import Text.Blaze.Html.Renderer.Text (renderHtml)
+
+import Prelude (Show)
+import qualified Prelude as P (show,head)
 
 import Alava (parse, infer)
 import PrettyPrint (display)
-import HtmlPrint (renderHtml)
+import qualified HtmlPrint (html,term)
 import Syntax (SourcePos)
 import Error (Error)
+
+show :: Show a => a -> Text
+show = pack . P.show
 
 main :: IO ()
 main = do
     [mode,filepath] <- getArgs
-    contents <- fst <$> fromBytes UTF8 <$> readFile (unsafeFilePath Relative [unsafeFileName $ toBytes UTF8 filepath])
+    contents <- (pack . toList . fst) <$> fromBytes UTF8 <$> readFile (unsafeFilePath Relative [unsafeFileName $ toBytes UTF8 filepath])
     case mode of
         "text" -> do
-            e <- infer contents
+            e <- runStdoutLoggingT . infer $ contents
             mapM_ putStrLn $ case e of
                 Right (t,_) -> [display t]
                 Left errors -> showErrors errors
         "html" -> do
-            e <- infer contents
+            e <- runStdoutLoggingT . infer $  contents
             mapM_ putStrLn $ case e of
-                Right (t,_) -> [fromString $ unpack $ renderHtml t]
+                Right (t,_) -> [renderHtml $ HtmlPrint.html (HtmlPrint.term t)]
                 Left errors -> showErrors errors
         "parse" -> putStrLn $ show $ P.head $ parse contents
-        _ -> putStrLn "1/2/3"
+        _ -> putStrLn "text/html/parse"
 
-showErrors :: [(Error, SourcePos)] -> [String]
+showErrors :: [(Error, SourcePos)] -> [Text]
 showErrors = fmap (\ (err, pos) -> show pos <> ": " <> show err <> "\n")

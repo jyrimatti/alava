@@ -1,14 +1,20 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, OverloadedLists #-}
 module Environment where
 
-import Foundation (($),Show,Maybe,fmap,(<>),listToMaybe,(==),(/=),show,toList)
+import Foundation (($),(.),Maybe,fmap,(<>),listToMaybe,(==),(/=),toList)
 import Foundation.Collection (intercalate)
 
-import qualified Prelude as P
+import Prelude (Show)
+import qualified Prelude as P (show,error)
 import GHC.Stack (HasCallStack)
+
+import Data.Text.Lazy (Text,pack)
 
 import PrettyPrint (display)
 import Syntax (Term(Def,Sig),SourcePos(SourcePos),TName)
+
+show :: Show a => a -> Text
+show = pack . P.show
 
 data Env = Env { ctx :: [Term], sourceLocation :: [SourcePos] }
 

@@ -2,14 +2,21 @@
 
 module PrettyPrint where
 
-import Foundation (String,Maybe(Just,Nothing),(<>),show,maybe)
+import Foundation (Maybe(Just,Nothing),(<>),(.),maybe)
+
+import Prelude (Show)
+import qualified Prelude as P (show)
 
 import Data.Foldable (foldMap)
+import Data.Text.Lazy (Text, pack)
 
 import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod,Case),AnnType(Inferred))
 
+show :: Show a => a -> Text
+show = pack . P.show
+
 class Display x where
-  display :: x -> String
+  display :: x -> Text
 
 instance Display Term where
   display Type = "Type"
@@ -31,12 +38,12 @@ instance Display Term where
   display p@(Prod _ _)                      = "(" <> dispP p <> ")"
   display (Case a b c)                      = "case " <> display a <> " of\n " <> display b <> " -> " <> display c
 
-dispS :: Term -> String
+dispS :: Term -> Text
 dispS (Sigma Nothing Nothing Nothing) = ""
 dispS (Sigma ma (Just b) c)           = maybe "" (\a -> show a <> ": ") ma <> dispS b <> maybe "" (\x -> ", " <> dispS x) c
 dispS x                               = display x
 
-dispP :: Term -> String
+dispP :: Term -> Text
 dispP (Prod Nothing Nothing) = ""
 dispP (Prod (Just a) b)      = dispP a <> maybe "" (\x -> ", " <> dispP x) b
 dispP x                      = display x

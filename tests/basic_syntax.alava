@@ -19,9 +19,8 @@ let
 
   -- Data types:
 
-  -- Empty type. Cannot be constructed.
-  Void : Type
-  Void = {}
+  Unit : Type
+  Unit = {}
 
   -- Simple record
   Person : Type

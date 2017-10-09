@@ -1,34 +1,31 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module Error where
 
-import Foundation (($),Functor,fmap,pure,(<*>),(>>=),(<>),Applicative,Monad,String,Show,show,Monoid,Bool(True,False),(==),(&&),Either,Maybe(Just,Nothing),(<),(>),Ordering(LT,EQ,GT),error,toList,fromMaybe,IO)
-import Foundation.Collection (sortBy, intercalate)
+import Foundation ((.),(<>))
 
-import qualified Prelude as P
-import Debug.Trace(trace)
-import Control.Monad.Logger.CallStack
+import Prelude (Show)
+import qualified Prelude as P (show,String)
 
-import GHC.Stack (HasCallStack)
+import Data.Text.Lazy (Text,pack,unpack,intercalate)
 
-import Data.Foldable (all,foldl)
-import Data.List (zip)
-import Data.Text (pack)
+import Control.Monad.Morph ()
+import Control.Monad.Logger.CallStack ()
+import Control.Monad.Except ()
 
-import Control.Monad.Morph
-import Control.Monad.Logger.CallStack
-import Control.Monad.Except
-
-import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Paren,Let,Def,Sig,Sigma,Prod,Pos,Comment),SourcePos,Type,TName,AnnType(Inferred))
-import Environment (Env,getSourceLocation,lookupDef,lookupTy,extendCtx)
+import Syntax (Term,SourcePos,Type)
+import Environment (Env,getSourceLocation)
 import PrettyPrint (display)
+
+show :: Show a => a -> Text
+show = pack . P.show
 
 err :: Error -> [(Error,SourcePos)]
 err e = [(e, getSourceLocation (getEnv e))]
 
-unlines :: [String] -> P.String
-unlines xs = toList $ intercalate "\n" xs
+unlines :: [Text] -> P.String
+unlines = unpack . intercalate "\n"
 
-data Error = NotInScope Env String
+data Error = NotInScope Env Text
            | NotEqual Env Type Type
            | LambdaMustHaveFunctionType Env Term Type
            | ExpectedFunctionType Env Term Type
@@ -60,7 +57,7 @@ instance Show Error where
     ,"Expected:"
     ,"  " <> display expected <> "   ... " <> show expected
     ,"Actual:"
-    ,"  " <> display expected <> "   ... " <> show actual
+    ,"  " <> display actual <> "   ... " <> show actual
     ,"Env:"
     ,show env
     ]

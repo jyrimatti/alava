@@ -1,9 +1,17 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module Substitution where
 
-import Foundation (($),(<>),(==),show,Maybe(Just,Nothing),error)
+import Foundation (($),(.),(<>),(==),Maybe(Just,Nothing))
+
+import Prelude (Show)
+import qualified Prelude as P (show,error)
+
+import Data.Text.Lazy (Text, pack, unpack)
 
 import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Sigma,Comment),TName)
+
+show :: Show a => a -> Text
+show = pack . P.show
 
 -- poor man's substitution, for now...
 subst :: Maybe TName -> Term -> Term -> Term
@@ -20,4 +28,4 @@ subst (Just _   ) _     s@(Sigma _ Nothing Nothing) = s
 subst (Just name) param (Sigma x (Just y) Nothing) = Sigma x (Just (subst (Just name) param y)) Nothing
 subst (Just name) param (Sigma x (Just y) (Just z)) = Sigma x (Just (subst (Just name) param y)) (Just (subst (Just name) param z))
 subst _ _ x@(Comment _) = x
-subst a b c = error $ "subst: " <> show a <> " " <> show b <> " " <> show c
+subst a b c = P.error $ unpack $ "subst: " <> show a <> " " <> show b <> " " <> show c
