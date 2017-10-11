@@ -49,4 +49,4 @@ Test-Suite tests
   type: exitcode-stdio-1.0
   main-is: Tests.hs
   hs-source-dirs: src-tests
-  build-depends: alava, base, foundation, mtl, monad-logger, tasty, tasty-hunit
+  build-depends: alava, base, foundation, mtl, monad-logger, tasty, tasty-hunit, text

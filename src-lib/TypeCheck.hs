@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module TypeCheck where
 
-import Foundation (($),(.),Maybe(Just,Nothing),pure,fromMaybe,(<>))
+import Foundation (($),(.),Maybe(Just,Nothing),pure,fromMaybe,(<>),Bool(True,False),(==),(/=))
 import Foundation.Collection (reverse)
 
 import Prelude (Show)
@@ -20,7 +20,7 @@ import Syntax (Type,Term(Var,Type,Pi,Lam,App,Ann,Pos,Paren,Let,Sig,Def,Comment,S
 import Environment (Env,lookupTy,extendCtx,extendSourceLocation)
 import Equal (ResultM,Whnf(Whnf),whnf,equate,ensurePi)
 import Substitution (subst)
-import Error (err, Error(NotInScope,NotEqual,LambdaMustHaveFunctionType,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedType))
+import Error (err, Error(NotInScope,NotEqual,LambdaMustHaveFunctionType,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedType,MustAnnotateLambda))
 
 show :: Show a => a -> Text
 show = pack . P.show
@@ -39,14 +39,13 @@ inferType env term = do
 
 checkType :: (MonadLogger m, HasCallStack) => Env -> Term -> Type -> ResultM m (Term,Type)
 checkType env term expectedType = do
-  logDebug $ "checkType " <> show term <> " " <> show expectedType
+  logDebug $ "checkType:\n  " <> show term <> "\n  " <> show expectedType
   tcTerm env term $ Just $ whnf env expectedType
 
-tcType :: (MonadLogger m, HasCallStack) => Env -> Term -> ResultM m Term
+tcType :: (MonadLogger m, HasCallStack) => Env -> Term -> ResultM m (Term,Type)
 tcType env tm = withExceptT ((err $ ExpectedType env tm) <>) $ do
-  logDebug $ "tcType " <> show tm
-  (t,_) <- checkType env tm Type
-  pure t
+  logDebug $ "tcType:\n  " <> show tm
+  checkType env tm Type
 
 logRet :: MonadLogger m => Text -> Term -> Type -> ResultM m (Term, Type)
 logRet str eTerm eType = do
@@ -72,36 +71,39 @@ tcTerm _ t@Type Nothing = do
 
 tcTerm env t@(Pi x tyA tyB) Nothing = do
   logDebug $ "tcTerm " <> show t
-  atyA <- tcType env tyA
-  atyB <- tcType (case x of Just xx -> extendCtx (Sig xx atyA) env; Nothing -> env) tyB
+  (atyA,_) <- tcType env tyA
+  (atyB,_) <- tcType (case x of Just xx -> extendCtx (Sig xx atyA) env; Nothing -> env) tyB
   logRet "Pi" (Pi x atyA atyB) Type
       
--- Check the type of a function    
-tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(Pi _ tyA tyB))) = do
+-- Check the type of a function
+tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(Pi mname tyA tyB))) = do
     logDebug $ "tcTerm " <> show t <> " " <> show a
     -- check tyA matches type annotation on binder, if present
     ea <- case ma of
         Just aa  -> do
-          res <- equate env tyA aa
+          (aat,_) <- tcType env aa
+          res <- equate env tyA aat
           if res then pure tyA
                  else throwError $ err $ NotEqual env tyA aa
         Nothing -> pure tyA
     -- check the type of the body of the lambda expression
-    let newEnv     = extendCtx (Sig x ea) env
+    let newEnv = extendCtx (Sig x ea) env    
     (ebody, _) <- checkType newEnv body tyB
-    logRet "Lam1" (Lam x (Just $ Ann (fromMaybe (Comment "") ma) ea Inferred) ebody) p
+    logRet "Lam1" (Lam x (Just ea) ebody) p
 
 --tcTerm env t@(Lam "_" s1 s2) (Just (Whnf Type)) = do
 --  todo: --pure (t, Type)
 
 tcTerm env t@Lam{} (Just (Whnf nf)) = throwError $ err $ LambdaMustHaveFunctionType env t nf
 
+tcTerm env t@(Lam x Nothing body) Nothing = throwError $ err $ MustAnnotateLambda env t
+
 -- infer the type of a lambda expression, when an annotation
 -- on the binder is present
 tcTerm env t@(Lam x (Just annot) body) Nothing = do
     logDebug $ "tcTerm " <> show t
     -- check that the type annotation is well-formed
-    atyA          <- tcType env annot
+    (atyA,_)          <- tcType env annot
     -- infer the type of the body of the lambda expression
     let newEnv     = extendCtx (Sig x atyA) env
     (ebody, atyB) <- inferType newEnv body
@@ -113,12 +115,11 @@ tcTerm env t@(App t1 t2) Nothing = do
     (mname, argType, resType) <- ensurePi env ty1
     logDebug $ "Checking if application parameter (" <> show t2 <> ") matches function argument type (" <> show argType <> ")"
     (at2, _) <- withExceptT ((<>) $ err $ AppTypesDontMatch env t argType t2) $ checkType env t2 argType
-    let _      = extendCtx (Def (fromMaybe "_" mname) at2) $ extendCtx (Sig (fromMaybe "_" mname) argType) env
     logRet "App" (App at1 at2) $ subst mname at2 resType
 
 tcTerm env t@(Ann tm ty _) Nothing = do
     logDebug $ "tcTerm " <> show t
-    ty'         <- tcType env ty
+    (ty',_)     <- tcType env ty
     (tm', ty'') <- checkType env tm ty'
     logRet "Ann" tm' ty''
   
@@ -173,7 +174,7 @@ tcTerm _ s@(Sig _ t) a = do
 --   logRet "Def1" (Def name ebody) etype
 
 tcTerm env t@(Def name body) ann = do
-   logDebug $ "tcTerm " <> show t <> show ann
+   logDebug $ "tcTerm " <> show t <> " " <> show ann
    (ebody, etype) <- tcTerm env body ann
    logRet "Def2" (Def name ebody) etype
       
@@ -181,21 +182,35 @@ tcTerm env t@(Def name body) ann = do
     
 tcTerm env t@(Sigma (Just x) (Just tyA) (Just tyB)) Nothing = do        
   logDebug $ "tcTerm " <> show t
-  atyA <- tcType env tyA
-  atyB <- tcType (extendCtx (Sig x atyA) env) tyB
+  (atyA,_) <- tcType env tyA
+  (atyB,_) <- tcType (extendCtx (Sig x atyA) env) tyB
   logRet "Sigma1" (Sigma (Just x) (Just atyA) (Just atyB)) Type
 
 tcTerm env t@(Sigma (Just x) (Just tyA) Nothing) Nothing = do        
   logDebug $ "tcTerm " <> show t
-  atyA <- tcType env tyA
+  (atyA,_) <- tcType env tyA
   logRet "Sigma2" (Sigma (Just x) (Just atyA) Nothing) Type
 
 tcTerm _ t@(Sigma Nothing Nothing Nothing) Nothing = do
   logDebug $ "tcTerm " <> show t
   logRet "Sigma3" t Type
 
+tcTerm env t@(Prod Nothing Nothing) Nothing = do
+  logDebug $ "tcTerm " <> show t
+  logRet "Prod" t (Sigma Nothing Nothing Nothing)
+
+tcTerm env t@(Prod (Just a) b) Nothing = do
+  logDebug $ "tcTerm " <> show t
+  (ea,tyA) <- inferType env a
+  (meb, mtyB) <- case b of
+    Nothing -> pure (Nothing, Nothing)
+    Just c -> do
+      (mec,tyC) <- inferType env c
+      pure (Just mec, Just tyC)
+  logRet "Prod" (Prod (Just ea) meb) (Sigma Nothing (Just tyA) mtyB)
+
 tcTerm env t@(Prod (Just a) b) ann@(Just (Whnf w@(Sigma _ (Just aa) bb))) = do
-  logDebug $ "tcTerm " <> show t <> show ann
+  logDebug $ "tcTerm " <> show t <> " " <> show ann
   (ea,tyA) <- checkType env a aa
   (meb, mtyB) <- case (b,bb) of
       (Just c, Just cc)  -> do
@@ -203,10 +218,10 @@ tcTerm env t@(Prod (Just a) b) ann@(Just (Whnf w@(Sigma _ (Just aa) bb))) = do
         pure (Just eb, Just tyB)
       (Nothing, Nothing) -> pure (Nothing,Nothing)
       _                  -> throwError $ err $ NotEqual env t w
-  logRet "Prod5" (Prod (Just ea) meb) (Sigma Nothing (Just tyA) mtyB)
+  logRet "Prod" (Prod (Just ea) meb) (Sigma Nothing (Just tyA) mtyB)
       
 tcTerm env tm a@(Just (Whnf ty)) = do
-  logDebug $ "tcTerm " <> show tm <> show a
+  logDebug $ "tcTerm " <> show tm <> " " <> show a
   withExceptT ((<>) $ err $ CouldNotInferType env tm) $ do
     (atm, ty') <- inferType env tm
     res <- equate env ty' ty

@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module Syntax where
 
-import Foundation (($),(.),Int,Maybe(Just,Nothing),toList,(<>))
+import Foundation (($),(.),Int,Maybe(Just,Nothing),toList,(<>),Eq)
 import Data.Text.Lazy (Text,pack)
 
 import Prelude (Show)
@@ -14,9 +14,9 @@ type TName = Text
 
 type Type = Term
 
-data AnnType = UserGiven | Inferred deriving Show
+data AnnType = UserGiven | Inferred deriving (Show, Eq)
 
-data SourcePos = SourcePos Int Int deriving Show
+data SourcePos = SourcePos Int Int deriving (Show,Eq)
 
 data Term = 
    -- Core language
@@ -43,7 +43,7 @@ data Term =
     
    | Prod (Maybe Term) (Maybe Term)
    | Case Term Term Term
-                              
+  deriving Eq                              
 
 paren :: Term -> Text
 paren t@Type = show t

@@ -32,12 +32,12 @@ main = do
     contents <- (pack . toList . fst) <$> fromBytes UTF8 <$> readFile (unsafeFilePath Relative [unsafeFileName $ toBytes UTF8 filepath])
     case mode of
         "text" -> do
-            e <- runStdoutLoggingT . infer $ contents
+            e <- runStdoutLoggingT . infer . P.head . parse $ contents
             mapM_ putStrLn $ case e of
                 Right (t,_) -> [display t]
                 Left errors -> showErrors errors
         "html" -> do
-            e <- runStdoutLoggingT . infer $  contents
+            e <- runStdoutLoggingT . infer . P.head . parse $ contents
             mapM_ putStrLn $ case e of
                 Right (t,_) -> [renderHtml $ HtmlPrint.html (HtmlPrint.term t)]
                 Left errors -> showErrors errors

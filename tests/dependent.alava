@@ -1,5 +1,6 @@
 let
-  -- some basic booleans...
+  -- some basic booleans
+
   bool : Type
   bool = (x : Type) -> x -> x -> x
 
@@ -9,15 +10,12 @@ let
   false : bool
   false = \x. \y. \z. z
 
+  -- type-level if
   if : (b: bool) -> Type -> Type -> Type
   if = \b . \x . \y . b Type x y
 
-
-  Person : Type
-  Person = { manager: bool }
-
-  jenkins : Person
-  jenkins = Person_ { manager = true }
+  not : bool -> bool
+  not = \b. b bool false true
 
 
   
@@ -26,6 +24,12 @@ let
   id = \t. \x. x
 
   -- Dependent function:
+  Person : Type
+  Person = { manager: bool }
+
+  jenkins : Person
+  jenkins = Person_ { manager = true }
+
   boolOrPersonType : bool -> Type
   boolOrPersonType = \b. if b bool Person
 
@@ -34,11 +38,12 @@ let
   
   thisIsAPerson : boolOrPersonType false
   thisIsAPerson = jenkins
+
   
 
 
   -- Dependent record:
-  boolOrPersonWrapper : (A: bool) -> Type
+  boolOrPersonWrapper : bool -> Type
   boolOrPersonWrapper (A: bool) = { boolOrPerson: (if A bool Person) }
 
   ff : boolOrPersonWrapper true
@@ -49,11 +54,8 @@ let
 
 
 
-
-  -- dependent vector
-
-  Unit : Type
-  Unit = {}
+  -- some church encodings since we don't have primitives yet...
+  -- https://en.wikipedia.org/wiki/Church_encoding
 
   Nat : Type
   Nat = (x : Type) -> (x -> x) -> x -> x
@@ -70,14 +72,80 @@ let
   two : Nat
   two = \t. \f. \x. f (f x)
 
+  three : Nat
+  three = \t. \f. \x. f (f (f x))
+
+  succ : Nat -> Nat
+  succ = \n. \x. \f. \xx. f (n x f xx)
+
   pred : Nat -> Nat
   pred = \n. \x. \f. \xx. n ((x->x) -> x) (\g. \h. h (g f)) (\u. xx) (\u. u) 
+
+
+  Unit : Type
+  Unit = {}
+
+  -- uninhabited type.
+  Void : Type
+  Void = (A:Type) -> A
+
+  QED : Type
+  QED = { foo: bool }
+  qed : QED
+  qed = QED_ { foo = true }
+
+  assert : bool -> Type
+  assert = \b. if b QED Void
+
+  zeroIsZero : assert (isZero zero)
+  zeroIsZero = qed
+
+  predecessorOfOneIsZero : assert (isZero (pred one))
+  predecessorOfOneIsZero = qed
+
+  predecessorOfZeroIsZero : assert (isZero (pred zero))
+  predecessorOfZeroIsZero = qed
+
+  doublePredecessorOfTwoIsZero : assert (isZero (pred (pred two)))
+  doublePredecessorOfTwoIsZero = qed
+
+  successorOfZeroIsNotZero : assert (not (isZero (succ zero)))
+  successorOfZeroIsNotZero = qed
+
+  -- does not compile:
+  --oneIsZero : assert (isZero one)
+  --oneIsZero = qed
+  --twoIsZero : assert (isZero two)
+  --twoIsZero = qed
+  --successorOfZeroIsZero : assert (isZero (succ zero))
+  --successorOfZeroIsZero = qed
+  -- FIXME: this should fail, but it does not...
+  doublePredecessorOfThreeIsZero : assert (isZero (pred (pred three)))
+  doublePredecessorOfThreeIsZero = qed
+
+
+
+  -- dependent vectors:
 
   Vector : Nat -> Type -> Type
   Vector (length: Nat) (E:Type) = { head: (if (isZero length) Unit E), tail: (if (isZero length) Unit (Vector (pred length) E)) }
 
-  emptyVec : Vector zero Unit 
-  emptyVec = Vector_ { head = Unit_, tail = Unit_ }
-in
+  -- really useful vectors of booleans...
+  emptyVec : Vector zero bool
+  emptyVec = Vector_ zero bool { head = Unit_, tail = Unit_ }
 
+  singletonVec : (E: bool) -> Vector one bool
+  singletonVec = \e. Vector_ one bool { head = e, tail = emptyVec }
+
+  head : (n: Nat) -> (proof: (assert (not (isZero n)))) -> Vector n bool -> bool
+  head = \n p vec. true -- ugh, cannot destructure records yet...
+
+  headOfSingletonVec : bool
+  headOfSingletonVec = head one qed (singletonVec true)
+
+  -- none of these can be constructed:
+  --headOfEmptyVec : bool
+  --headOfEmptyVec = head zero qed emptyVec
+  --headOfEmptyVec = head one qed emptyVec
+in
   bool

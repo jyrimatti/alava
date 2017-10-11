@@ -15,7 +15,7 @@ import Data.Text.Lazy (Text,unlines,last,pack)
 import Data.Foldable (foldMap)
 
 import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod),SourcePos(SourcePos),AnnType(Inferred,UserGiven))
-import Error (Error(NotInScope,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedFunctionType,ExpectedType,LambdaMustHaveFunctionType,NotEqual))
+import Error (Error(NotInScope,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedFunctionType,ExpectedType,LambdaMustHaveFunctionType,NotEqual,MustAnnotateLambda))
 import PrettyPrint (display)
 
 show :: Show a => a -> Text
@@ -161,5 +161,9 @@ error (AppTypesDontMatch _ trm expected actual) = toHtml $ unlines
   ]
 error (CouldNotInferType _ trm) = toHtml $ unlines
   ["Could not infer type for:"
+  ,"  " <> display trm
+  ]
+error (MustAnnotateLambda _ trm) = toHtml $ unlines
+  ["Must annotate lambda:"
   ,"  " <> display trm
   ]

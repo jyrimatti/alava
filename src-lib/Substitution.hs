@@ -10,10 +10,16 @@ import Data.Text.Lazy (Text, pack, unpack)
 
 import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Sigma,Comment),TName)
 
+-- $setup
+-- >>> :set -XOverloadedStrings
+
 show :: Show a => a -> Text
 show = pack . P.show
 
 -- poor man's substitution, for now...
+-- |
+-- >>> subst (Just "x") (Var "y") (Var "x")
+-- Var "y"
 subst :: Maybe TName -> Term -> Term -> Term
 subst Nothing _ x = x
 subst (Just name) param (Ann x y z) = Ann (subst (Just name) param x) (subst (Just name) param y) z

@@ -35,7 +35,6 @@ import Text.Blaze.XHtml5 hiding (main,head,body)
 import Text.Blaze.XHtml5.Attributes
 import Text.Blaze.Html.Renderer.String (renderHtml)
 
-import SimpleParser (expr,parse)
 import TypeCheck (inferType)
 import Error (Error)
 import Syntax (SourcePos)
@@ -77,7 +76,40 @@ body =
     HtmlPrint.footer
 
 introContent :: Html
-introContent = div $ "moi"
+introContent = do
+  h3 "Why should you make your own programming language?"
+  ul $ do
+    li "to learn new stuff"
+    li "to see the difficulty in implementing certain features"
+    li "to understand what’s possible and what’s not"
+    li "to find out if a language property (like dependent types) can make some exotic features trivial to implement"
+
+  h3 "What are dependent types?"
+  ul $ do
+    li "a type can depend on both other types AND values"
+    li $ do
+      "vs"
+      ul $ do
+        li "head: Vector T -> T"
+        li "head: (length: Nat) (length > 0) (Vector length T) -> T"
+
+  h3 "What might dependent types be good for?"
+  ul $ do
+    li "they make it possible not to have a separate module language and a core language"
+    li "they make the language useful also as a theorem prover"
+    li "statically safe head/tail functions and the elimination of array bounds check"
+    li "..."
+
+  h3 "Alava at the moment:"
+  ul $ do
+    li $ do
+      "based on Pi-Forall (lecture videos and code) from Stephanie Weirich ("
+      a ! href "https://github.com/sweirich/pi-forall" $ "https://github.com/sweirich/pi-forall"
+      ") but I threw most stuff away to learn how things are done"
+    li "dependently typed"
+    li "no primitives, sum types, module system, polymorphism, type inference, runtime, evaluator…"
+    li "in the future hopefully the aforementioned as well as subtyping, totality checker, linear types, Hindley-Milner etc."
+
 
 helloMain :: JSM ()
 helloMain = do
@@ -112,10 +144,13 @@ helloMain = do
         setInnerHTML err $ unpack noErrorsText
         (Just txt) <- getTextContent code
         liftIO $ putStrLn $ pack txt
-        e <- runNoLoggingT . infer $ pack txt
-        case e of
-            Right (t,_) -> setInnerHTML code $ renderHtml $ HtmlPrint.term t
-            Left errors -> setInnerHTML err $ renderHtml $ foldMap showError errors
+        case parse $ pack txt of
+          []     -> setInnerHTML err $ unpack "Parse error! Sorry, no more info due to custom parser ;)"
+          expr:_ -> do
+            e <- runNoLoggingT . infer $ expr
+            case e of
+                Right (t,_) -> setInnerHTML code $ renderHtml $ HtmlPrint.term t
+                Left errors -> setInnerHTML err $ renderHtml $ foldMap showError errors
 
     return ()
 

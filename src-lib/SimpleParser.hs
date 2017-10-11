@@ -324,10 +324,13 @@ valdef = toDef <$> (var <* ws <* char '=' <* ws) <*> term
 --
 -- >>> parse recorddef "a B C = {b: B C}"
 -- [([*Def "a" (Lam "B" Nothing (Lam "C" Nothing (*Sigma (Just "b") (Just (*App (*Var "B") (*Var "C"))) Nothing))),*Sig "a_" (*Pi Nothing (*Var "B") (*Pi Nothing (*Var "C") (Pi Nothing (*Sigma (Just "b") (Just (*App (*Var "B") (*Var "C"))) Nothing) (*Sigma (Just "b") (Just (*App (*Var "B") (*Var "C"))) Nothing)))),*Def "a_" (Lam "_" Nothing (Lam "_" Nothing (Lam "_" Nothing (Var "_"))))],...)]
+--
+-- >>> parse recorddef "Unit = {}"
+-- [([*Def "Unit" (*Sigma Nothing Nothing Nothing),*Sig "Unit_" (*Sigma Nothing Nothing Nothing),*Def "Unit_" (Prod Nothing Nothing)],...)]
 recorddef :: Parser [Term]
 recorddef = toDef <$> var <*> many (ws *> factor) <* (ws <* char '=' <* ws) <*> record
   where factor = ptype <|> var <|> ann
-        toPi (Pos pos (Ann (Pos _ (Var a)) c UserGiven)) b = Pos pos $ Pi (Just a) c b
+        toPi (Pos pos (Ann (Pos _ (Var a)) b UserGiven)) c = Pos pos $ Pi (Just a) b c
         toPi b c                                           = getPos b $ Pi Nothing b c
         name Type = Lam "_" Nothing
         name (Var x) = Lam x Nothing
@@ -335,13 +338,14 @@ recorddef = toDef <$> var <*> many (ws *> factor) <* (ws <* char '=' <* ws) <*> 
         name (Ann x _ _) = name x
         toDef (Pos pos (Var a)) ts rec = [ --Pos pos $ Def a $ foldr toPi rec ts
                                               Pos pos $ Def a $ foldr name rec ts
-                                            , Pos pos $ Sig (a<>"_") $ foldr toPi (Pi Nothing rec rec) ts
-                                            , Pos pos $ Def (a<>"_") $ foldr (\_ b -> Lam "_" Nothing b) (Lam "_" Nothing $ Var "_") ts
+                                            , Pos pos $ Sig (a<>"_") $ foldr toPi (toP rec) ts
+                                            , Pos pos $ Def (a<>"_") $ foldr (\_ b -> Lam "_" Nothing b) (toLam rec) ts
                                             ]
-        --lamChain r (Sigma Nothing Nothing Nothing) []             = Prod Nothing Nothing (Just r)
-        --lamChain r (Sigma Nothing Nothing Nothing) (x:xs)         = foldr (\a b -> Prod (Just a) (Just b) (Just r)) x xs
-        --lamChain r (Sigma (Just a) (Just b) Nothing) xs           = Lam a (Just b) $ lamChain r (Sigma Nothing Nothing Nothing) $ Ann (Var a) b UserGiven : xs
-        --lamChain r (Sigma (Just a) (Just b) (Just c)) xs          = Lam a (Just b) $ lamChain r c $ Ann (Var a) b UserGiven : xs
+        -- todo: saisiko hieman elegantimmin...
+        toP   rec@(Pos _ (Sigma Nothing Nothing Nothing)) = rec
+        toP   rec                                         = (Pi Nothing rec rec)                          
+        toLam (Pos _ (Sigma Nothing Nothing Nothing))     = Prod Nothing Nothing
+        toLam _                                           = Lam "_" Nothing $ Var "_"
         
 
 

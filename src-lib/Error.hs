@@ -33,6 +33,7 @@ data Error = NotInScope Env Text
            | TypesDontMatch Env Term Type Type
            | AppTypesDontMatch Env Term Type Type
            | CouldNotInferType Env Term
+           | MustAnnotateLambda Env Term
 
 getEnv :: Error -> Env
 getEnv (NotInScope e _) = e
@@ -43,6 +44,7 @@ getEnv (ExpectedType e _)= e
 getEnv (TypesDontMatch e _ _ _) = e
 getEnv (AppTypesDontMatch e _ _ _) = e
 getEnv (CouldNotInferType e _) = e
+getEnv (MustAnnotateLambda e _) = e
 
 
 instance Show Error where
@@ -105,6 +107,12 @@ instance Show Error where
     ]
   show (CouldNotInferType env term) = unlines
     ["Could not infer type for:"
+    ,"  " <> display term <> "   ... " <> show term
+    ,"Env:"
+    ,show env
+    ]
+  show (MustAnnotateLambda env term) = unlines
+    ["Must annotate lambda:"
     ,"  " <> display term <> "   ... " <> show term
     ,"Env:"
     ,show env

@@ -10,12 +10,17 @@ let
   bool : Type
   bool = (x : Type) -> x -> x -> x
 
+  -- value definition
   true : bool
   true = \x. \y. \z. y
 
   -- Function application
   stillTrue : bool
   stillTrue = id bool true
+
+  -- multiple nested lambdas can be combined (syntax sugar) and variables annotated
+  someFunc : Type -> bool -> bool
+  someFunc = \a (b: bool) . b 
 
   -- Data types:
 
