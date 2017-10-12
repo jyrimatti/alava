@@ -1,17 +1,15 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, OverloadedLists, BangPatterns #-}
 module Equal where
 
-import Foundation (($),(.),pure,(<>),Bool(True,False),(==),(&&),(||),Maybe(Just,Nothing),(<),(>),Ordering(LT,EQ,GT),IO,otherwise,uncurry)
+import Foundation (($),(.),pure,(<>),Bool(True,False),(==),(&&),Maybe(Just,Nothing),(<),(>),Ordering(LT,EQ,GT),otherwise,uncurry)
 import Foundation.Collection (sortBy)
 
 import Prelude (Show)
 import qualified Prelude as P (show,error)
 
-import Control.Monad.Logger.CallStack (LoggingT,logDebug,MonadLogger)
+import Control.Monad.Logger.CallStack (logDebug,MonadLogger)
 
 import GHC.Stack (HasCallStack)
-
-import Debug.Trace (trace)
 
 import Data.Foldable (all,foldl)
 import Data.List (zip)
@@ -21,8 +19,8 @@ import Control.Monad.Morph ()
 import Control.Monad.Logger.CallStack ()
 import Control.Monad.Except (ExceptT,throwError)
 
-import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Paren,Let,Def,Sig,Sigma,Prod,Pos),SourcePos,Type,TName,AnnType(Inferred))
-import Environment (Env,lookupDef,lookupTy,extendCtx,removeFromCtx)
+import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Paren,Let,Def,Sig,Sigma,Prod,Pos),SourcePos,Type,TName,)
+import Environment (Env,lookupDef,extendCtx)
 import Substitution (subst)
 import Error(Error(ExpectedFunctionType),err)
 
@@ -46,7 +44,7 @@ equate env t1 t2 = do
   pure ret
 
 equate_ :: HasCallStack => Env -> Term -> Term -> Bool
-equate_ env t1 t2 | t1 == t2 = True
+equate_ _ t1 t2 | t1 == t2 = True
 equate_ env t1 t2 = let
   n1 = whnf' env False t1  
   n2 = whnf' env False t2

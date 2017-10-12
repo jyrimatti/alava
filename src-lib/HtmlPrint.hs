@@ -49,7 +49,7 @@ head = Blaze.head $ do
             ,".a-keyword { color: #BF772F; }"
             ,".a-name { color: #2FBFBF; }"
             ,".a-var { color: #5F7FBF; }"
-            ,".a-def, .a-sig { color: #BCBC5E; }"
+            ,".a-def, .a-sig { color: #8C8C5E; }"
           ]
 
 footer :: Html
@@ -83,7 +83,7 @@ term (App f param)                     = wrap "app" $ term f <> txt " " <> term 
 term (Pi Nothing ptype rtype)          = wrap "pi" $ term ptype <> keyword " -> " <> term rtype
 term (Pi (Just tname) ptype rtype)     = wrap "pi" $ keyword "(" <> name tname <> keyword ": " <> term ptype <> keyword ") -> " <> term rtype
 
-term (Ann tr t UserGiven)            = wrap  "ann"   $ keyword "(" <> term tr <> keyword ": " <> term t <> keyword ")"
+term (Ann tr t UserGiven)              = wrap  "ann"   $ keyword "(" <> term tr <> keyword ": " <> term t <> keyword ")"
 term (Ann (Comment _) t Inferred)      = wrap2 "ann" t $ term t
 
 term (Let decls b)                     = wrap "let" $ keyword "let " <> br <> "\n" <> foldMap term decls <> br <> "\n" <> keyword "in" <> br <> "\n" <> term b

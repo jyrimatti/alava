@@ -4,35 +4,34 @@ module Main where
 import Foundation (($),(.),getArgs,fmap,fst,snd,IO,(<>),(<$>),(>>=),(=<<),Bool(True),flip,Either(Left,Right),pure,Maybe(Just,Nothing),return)
 import Foundation.Collection (filter,intercalate,sequence,traverse)
 import Foundation.IO (readFile)
-import Foundation.VFS ()
 import Foundation.VFS.FilePath (unsafeFilePath,unsafeFileName,Relativity(Relative))
 --import Foundation.String (toBytes,Encoding(UTF8),fromBytes)
 
 import Prelude (Show)
 import qualified Prelude as P (show)
 
-import Control.Monad.IO.Class
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad ((<=<))
 import Control.Monad.Logger (runNoLoggingT,NoLoggingT)
 import Data.Text.Lazy (Text,pack,unpack)
 import Data.Text.Lazy.IO (putStrLn)
 import Data.Foldable (foldMap)
 
-import GHCJS.DOM
+import GHCJS.DOM (currentDocumentUnchecked)
 import GHCJS.DOM.Types (JSM,IsGObject,JSVal,Document,JSString,HTMLElement(..),uncheckedCastTo,Element(..))
 import GHCJS.DOM.Document (getElementsByClassName,getBodyUnchecked,getHeadUnchecked)
-import GHCJS.DOM.Element (getInnerHTML,setInnerHTML)
+import GHCJS.DOM.Element (getInnerHTML,setInnerHTML,setAttribute)
 import qualified GHCJS.DOM.HTMLElement as E (blur)
-import GHCJS.DOM.Node
-import GHCJS.DOM.EventM 
+import GHCJS.DOM.Node (getTextContent)
+import GHCJS.DOM.EventM (on,preventDefault)
 import GHCJS.DOM.GlobalEventHandlers (click,blur)
 import GHCJS.DOM.HTMLTextAreaElement (setValue)
-import GHCJS.DOM.HTMLCollection
+import GHCJS.DOM.HTMLCollection (itemUnchecked)
 
-import JavaScript.Ajax.Async
+import JavaScript.Ajax.Async (AjaxResponse(..),sendRequestAsync,wait,StdMethod(GET))
 
 import Text.Blaze.XHtml5 hiding (main,head,body)
-import Text.Blaze.XHtml5.Attributes
+import Text.Blaze.XHtml5.Attributes (href,class_,contenteditable,type_)
 import Text.Blaze.Html.Renderer.String (renderHtml)
 
 import TypeCheck (inferType)
@@ -49,31 +48,37 @@ main :: IO ()
 main = helloMain
 
 body :: Html
-body = 
+body = do
   div ! class_ "container" $ do
     header ! class_ "header" $
       h1 "Alava"
 
     section ! class_ "section" $ do
-      h2 "Errors"
+      h2 $
+        a ! class_ "errors" ! href "#errors" $ "Errors"
       div ! class_ "boxcontent err" $ toHtml noErrorsText
-    section ! class_ "section" $
+    section ! class_ "section" $ do
+      h2 $
+        a ! class_ "content" ! href "#content" $ "Code"
       div ! class_ "boxcontent" $
         pre $
           code ! class_ "code" ! contenteditable "true" $ introContent
     
     section ! class_ "section menu" $ do
-      h2 "Documentation"
+      h2 $
+        a ! class_ "documentation" ! href "#documentation" $ "Documentation"
       div ! class_ "boxcontent" $
         ul $
           li $ a ! class_ "intro" $ "Introduction"
     section ! class_ "section menu" $ do
-      h2 "Code examples" 
+      h2 $
+        a ! class_ "examples" ! href "#examples" $ "Code examples"
       div ! class_ "boxcontent" $
         ul $ do
           li $ a ! class_ "basic" $ "Basic syntax"
           li $ a ! class_ "dependent" $ "Dependent types"
     HtmlPrint.footer
+  script ! type_ "text/javascript" $ "window.hl = function() { Array.prototype.slice.call(document.getElementsByClassName('section')).map(function(s) { s.className = s.className.replace('lifted', ''); }); if (location.hash == '') { document.getElementsByTagName('html')[0].className = ''; } else { document.getElementsByTagName('html')[0].className = 'highlight'; document.getElementsByClassName(location.hash.slice(1))[0].className += ' lifted'; document.body.onclick = function() { location.hash = ''; }; } }; hl();"
 
 introContent :: Html
 introContent = do
@@ -88,7 +93,7 @@ introContent = do
   ul $ do
     li "a type can depend on both other types AND values"
     li $ do
-      "vs"
+      "vs (in pseudo code)"
       ul $ do
         li "head: Vector T -> T"
         li "head: (length: Nat) (length > 0) (Vector length T) -> T"
@@ -102,12 +107,13 @@ introContent = do
 
   h3 "Alava at the moment:"
   ul $ do
+    li $ a ! href "https://github.com/jyrimatti/alava" $ "https://github.com/jyrimatti/alava"
     li $ do
       "based on Pi-Forall (lecture videos and code) from Stephanie Weirich ("
       a ! href "https://github.com/sweirich/pi-forall" $ "https://github.com/sweirich/pi-forall"
       ") but I threw most stuff away to learn how things are done"
     li "dependently typed"
-    li "no primitives, sum types, module system, polymorphism, type inference, runtime, evaluator…"
+    li "no primitives, sum types, module system, polymorphism, unverses, type inference, code generation, runtime, evaluator…"
     li "in the future hopefully the aforementioned as well as subtyping, totality checker, linear types, Hindley-Milner etc."
 
 
@@ -120,6 +126,7 @@ helloMain = do
     h <- getInnerHTML head
     setInnerHTML head $ h <> renderHtml HtmlPrint.head
     setInnerHTML bdy $ renderHtml body
+    setAttribute bdy ("onhashchange" :: JSString) ("window.hl();" :: JSString)
 
     [code,err,intro,basic,dependent] <- traverse (find HTMLElement doc) ["code", "err", "intro", "basic", "dependent"]
 
@@ -128,13 +135,13 @@ helloMain = do
         preventDefault
 
     on basic click $ do
-        AjaxResponse _ c <- ajaxGet "../../../../tests/basic_syntax.alava"
+        AjaxResponse _ c <- ajaxGet "basic_syntax.alava"
         setInnerHTML code c
         preventDefault
         E.blur code
 
     on dependent click $ do
-        AjaxResponse _ c <- ajaxGet "../../../../tests/dependent.alava"
+        AjaxResponse _ c <- ajaxGet "dependent.alava"
         setInnerHTML code c
         preventDefault
         E.blur code

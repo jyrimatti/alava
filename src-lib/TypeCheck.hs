@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module TypeCheck where
 
-import Foundation (($),(.),Maybe(Just,Nothing),pure,fromMaybe,(<>),Bool(True,False),(==),(/=))
+import Foundation (($),(.),Maybe(Just,Nothing),pure,fromMaybe,(<>))
 import Foundation.Collection (reverse)
 
 import Prelude (Show)
@@ -89,7 +89,7 @@ tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(Pi mname tyA tyB))) = do
     -- check the type of the body of the lambda expression
     let newEnv = extendCtx (Sig x ea) env    
     (ebody, _) <- checkType newEnv body tyB
-    logRet "Lam1" (Lam x (Just ea) ebody) p
+    logRet "Lam1" (Lam x (Just $ Ann (fromMaybe (Comment "") ma) ea Inferred) ebody) p
 
 --tcTerm env t@(Lam "_" s1 s2) (Just (Whnf Type)) = do
 --  todo: --pure (t, Type)
