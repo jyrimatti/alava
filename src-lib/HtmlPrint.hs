@@ -39,7 +39,7 @@ head = Blaze.head $ do
      style ! A.type_ "text/css" $
         toHtml $ unlines [ ""
             ,".section { max-width: 35%; float: right; }"
-            ,".section.menu { width: 20em; display: block; float: none; }"
+            ,".section.menu { width: 13em; display: block; float: none; }"
 
             ,".a-let, .a-sig, .a-def { display: block; }"
             ,".a-sig, .a-def { margin-left: 1em; }"
@@ -50,6 +50,7 @@ head = Blaze.head $ do
             ,".a-name { color: #2FBFBF; }"
             ,".a-var { color: #5F7FBF; }"
             ,".a-def, .a-sig { color: #8C8C5E; }"
+            ,"h1 > a { padding-left: 1em; opacity: 0.3; white-space: nowrap; }"
           ]
 
 footer :: Html

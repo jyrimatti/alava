@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script language="javascript" src="rts.js"></script>
+    <script language="javascript" src="lib.js"></script>
+    <script language="javascript" src="out.js"></script>
+  </head>
+  <body onload="window.hl = function() { Array.prototype.slice.call(document.getElementsByClassName('section')).map(function(s) { s.className = s.className.replace('lifted', ''); }); if (location.hash == '') { document.getElementsByTagName('html')[0].className = ''; } else { document.getElementsByTagName('html')[0].className = 'highlight'; document.getElementsByClassName(location.hash.slice(1))[0].className += ' lifted'; document.body.onclick = function() { location.hash = ''; }; } }; setTimeout(function() { hl(); }, 100);" onhashchange="window.hl();">
+  </body>
+  <script language="javascript" src="runmain.js" defer></script>
+</html>

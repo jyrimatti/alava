@@ -20,7 +20,7 @@ import Data.Foldable (foldMap)
 import GHCJS.DOM (currentDocumentUnchecked)
 import GHCJS.DOM.Types (JSM,IsGObject,JSVal,Document,JSString,HTMLElement(..),uncheckedCastTo,Element(..))
 import GHCJS.DOM.Document (getElementsByClassName,getBodyUnchecked,getHeadUnchecked)
-import GHCJS.DOM.Element (getInnerHTML,setInnerHTML,setAttribute)
+import GHCJS.DOM.Element (getInnerHTML,setInnerHTML)
 import qualified GHCJS.DOM.HTMLElement as E (blur)
 import GHCJS.DOM.Node (getTextContent)
 import GHCJS.DOM.EventM (on,preventDefault)
@@ -51,34 +51,35 @@ body :: Html
 body = do
   div ! class_ "container" $ do
     header ! class_ "header" $
-      h1 "Alava"
+      h1 $ do
+        span $ a ! href "https://alava.lahteenmaki.net" $ "Alava"
+        a ! href "https://lahteenmaki.net" $ " - lahteenmaki.net"
 
-    section ! class_ "section" $ do
+    section ! class_ "section errors" $ do
       h2 $
-        a ! class_ "errors" ! href "#errors" $ "Errors"
+        a ! href "#errors" $ "Errors"
       div ! class_ "boxcontent err" $ toHtml noErrorsText
-    section ! class_ "section" $ do
+    section ! class_ "section content" $ do
       h2 $
-        a ! class_ "content" ! href "#content" $ "Code"
+        a ! href "#content" $ "Code"
       div ! class_ "boxcontent" $
         pre $
           code ! class_ "code" ! contenteditable "true" $ introContent
     
-    section ! class_ "section menu" $ do
+    section ! class_ "section menu documentation" $ do
       h2 $
-        a ! class_ "documentation" ! href "#documentation" $ "Documentation"
+        a ! href "#documentation" $ "Documentation"
       div ! class_ "boxcontent" $
         ul $
           li $ a ! class_ "intro" $ "Introduction"
-    section ! class_ "section menu" $ do
+    section ! class_ "section menu examples" $ do
       h2 $
-        a ! class_ "examples" ! href "#examples" $ "Code examples"
+        a ! href "#examples" $ "Code examples"
       div ! class_ "boxcontent" $
         ul $ do
           li $ a ! class_ "basic" $ "Basic syntax"
           li $ a ! class_ "dependent" $ "Dependent types"
     HtmlPrint.footer
-  script ! type_ "text/javascript" $ "window.hl = function() { Array.prototype.slice.call(document.getElementsByClassName('section')).map(function(s) { s.className = s.className.replace('lifted', ''); }); if (location.hash == '') { document.getElementsByTagName('html')[0].className = ''; } else { document.getElementsByTagName('html')[0].className = 'highlight'; document.getElementsByClassName(location.hash.slice(1))[0].className += ' lifted'; document.body.onclick = function() { location.hash = ''; }; } }; hl();"
 
 introContent :: Html
 introContent = do
@@ -126,7 +127,6 @@ helloMain = do
     h <- getInnerHTML head
     setInnerHTML head $ h <> renderHtml HtmlPrint.head
     setInnerHTML bdy $ renderHtml body
-    setAttribute bdy ("onhashchange" :: JSString) ("window.hl();" :: JSString)
 
     [code,err,intro,basic,dependent] <- traverse (find HTMLElement doc) ["code", "err", "intro", "basic", "dependent"]
 

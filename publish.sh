@@ -6,3 +6,4 @@ cabal build jsmain
 ./fix-ghcjs.sh
 
 cp dist/build/jsmain/jsmain.jsexe/* www/
+cp index.html www/
