@@ -114,7 +114,7 @@ introContent = do
       a ! href "https://github.com/sweirich/pi-forall" $ "https://github.com/sweirich/pi-forall"
       ") but I threw most stuff away to learn how things are done"
     li "dependently typed"
-    li "no primitives, sum types, module system, polymorphism, unverses, type inference, code generation, runtime, evaluator…"
+    li "no primitives, sum types, module system, polymorphism, universes, type inference, code generation, runtime, evaluator…"
     li "in the future hopefully the aforementioned as well as subtyping, totality checker, linear types, Hindley-Milner etc."
 
 
