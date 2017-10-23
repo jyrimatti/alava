@@ -13,6 +13,7 @@ show = pack . P.show
 type TName = Text
 
 type Type = Term
+type EType = ETerm
 
 data AnnType = UserGiven | Inferred deriving (Show, Eq)
 
@@ -39,11 +40,33 @@ data Term =
    | Paren Term
    | Pos SourcePos Term
 
-   | Sigma (Maybe TName) (Maybe Term) (Maybe Term)
+   | Sigma (Maybe TName) (Maybe Type) (Maybe Type)
     
    | Prod (Maybe Term) (Maybe Term)
    | Case Term Term Term
-  deriving Eq                              
+  deriving Eq                  
+
+data ETerm = 
+   -- Core language
+     EType
+   | EVar Term TName EType
+   | ELam Term TName EType ETerm EType
+   | EApp Term ETerm ETerm EType
+   | EPi  Term (Maybe TName) EType EType
+   
+   -- Explicit type hints for terms
+   | EAnn Term ETerm EType
+
+   -- Modules
+   | ELet Term [ETerm] EType
+   | ESig Term TName EType
+   | EDef Term TName ETerm EType
+
+   | ESigma Term (Maybe EType) (Maybe EType) EType
+    
+   | EProd Term (Maybe ETerm) (Maybe ETerm) EType
+   | ECase Term ETerm ETerm ETerm EType
+  deriving (Eq,Show)
 
 paren :: Term -> Text
 paren t@Type = show t
@@ -63,18 +86,18 @@ print2 Nothing = "Nothing"
 print2 (Just a) = "(Just " <> show a <> ")"
 
 instance Show Term where
-  show Type        = "Type"
-  show (Var a)     = toList $ "Var " <> show a
-  show (Lam a b c) = toList $ "Lam " <> show a <> " " <> paren2 b <> " " <> paren c
-  show (App a b)   = toList $ "App " <> paren a <> " " <> paren b
-  show (Pi a b c)  = toList $ "Pi " <> print2 a <> " " <> paren b <> " " <> paren c
-  show (Ann a b c) = toList $ "Ann " <> paren a <> " " <> paren b <> " " <> show c
-  show (Let a b)   = toList $ "Let " <> show a <> " " <> paren b
-  show (Sig a b)   = toList $ "Sig " <> show a <> " " <> paren b
-  show (Def a b)   = toList $ "Def " <> show a <> " " <> paren b
-  show (Comment a) = toList $ "Comment " <> show a
-  show (Paren a)   = toList $ "Paren " <> paren a
-  show (Pos _ b)   = toList $ "*" <> show b
-  show (Sigma a b c)     = toList $ "Sigma " <> print2 a <> " " <> print b <> " " <> print c
-  show (Prod a b) = toList $ "Prod " <> paren2 a <> " " <> paren2 b
-  show (Case a b c)      = toList $ "Case " <> paren a <> " " <> paren b <> " " <> paren c
+  show Type          = "Type"
+  show (Var a)       = toList $ "Var " <> show a
+  show (Lam a b c)   = toList $ "Lam " <> show a <> " " <> paren2 b <> " " <> paren c
+  show (App a b)     = toList $ "App " <> paren a <> " " <> paren b
+  show (Pi a b c)    = toList $ "Pi " <> print2 a <> " " <> paren b <> " " <> paren c
+  show (Ann a b c)   = toList $ "Ann " <> paren a <> " " <> paren b <> " " <> show c
+  show (Let a b)     = toList $ "Let " <> show a <> " " <> paren b
+  show (Sig a b)     = toList $ "Sig " <> show a <> " " <> paren b
+  show (Def a b)     = toList $ "Def " <> show a <> " " <> paren b
+  show (Comment a)   = toList $ "Comment " <> show a
+  show (Paren a)     = toList $ "Paren " <> paren a
+  show (Pos _ b)     = toList $ "*" <> show b
+  show (Sigma a b c) = toList $ "Sigma " <> print2 a <> " " <> print b <> " " <> print c
+  show (Prod a b)    = toList $ "Prod " <> paren2 a <> " " <> paren2 b
+  show (Case a b c)  = toList $ "Case " <> paren a <> " " <> paren b <> " " <> paren c

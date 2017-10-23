@@ -12,7 +12,7 @@ import Control.Monad.Morph ()
 import Control.Monad.Logger.CallStack ()
 import Control.Monad.Except ()
 
-import Syntax (Term,SourcePos,Type)
+import Syntax (Term,SourcePos,Type,ETerm,EType)
 import Environment (Env,getSourceLocation)
 import PrettyPrint (display)
 
@@ -26,12 +26,12 @@ unlines :: [Text] -> P.String
 unlines = unpack . intercalate "\n"
 
 data Error = NotInScope Env Text
-           | NotEqual Env Type Type
-           | LambdaMustHaveFunctionType Env Term Type
-           | ExpectedFunctionType Env Term Type
+           | NotEqual Env EType Type
+           | LambdaMustHaveFunctionType Env Term EType
+           | ExpectedFunctionType Env ETerm EType
            | ExpectedType Env Term
-           | TypesDontMatch Env Term Type Type
-           | AppTypesDontMatch Env Term Type Type
+           | TypesDontMatch Env Term EType EType
+           | AppTypesDontMatch Env Term EType Type
            | CouldNotInferType Env Term
            | MustAnnotateLambda Env Term
 

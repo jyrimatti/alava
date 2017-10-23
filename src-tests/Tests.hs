@@ -8,7 +8,7 @@ import Foundation.String (fromBytes,Encoding(UTF8))
 
 import qualified Prelude as P (show,head,(!!))
 
-import Control.Monad (return,(>>=)
+import Control.Monad (return,(>>=))
 import Data.Traversable (traverse)
 import Data.Foldable (foldMap)
 import Data.Text.Lazy (Text,pack,unpack)

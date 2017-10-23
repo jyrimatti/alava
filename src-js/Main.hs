@@ -37,7 +37,7 @@ import Text.Blaze.Html.Renderer.String (renderHtml)
 import TypeCheck (inferType)
 import Error (Error)
 import Syntax (SourcePos)
-import qualified HtmlPrint (html,head,term,footer,error)
+import qualified HtmlPrint (html,head,eterm,footer,error)
 import Environment (emptyEnv)
 import Alava (parse, infer)
 
@@ -156,7 +156,7 @@ helloMain = do
           expr:_ -> do
             e <- runNoLoggingT . infer $ expr
             case e of
-                Right (t,_) -> setInnerHTML code $ renderHtml $ HtmlPrint.term t
+                Right (t,_) -> setInnerHTML code $ renderHtml $ HtmlPrint.eterm t
                 Left errors -> setInnerHTML err $ renderHtml $ foldMap showError errors
 
     return ()

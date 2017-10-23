@@ -14,7 +14,7 @@ import qualified Text.Blaze.Html5.Attributes as A
 import Data.Text.Lazy (Text,unlines,last,pack)
 import Data.Foldable (foldMap)
 
-import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod),SourcePos(SourcePos),AnnType(Inferred,UserGiven))
+import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod),SourcePos(SourcePos),AnnType(Inferred,UserGiven),ETerm(EType,EVar,ELam,EApp,EPi,EAnn,ELet,ESig,EDef,ESigma,EProd))
 import Error (Error(NotInScope,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedFunctionType,ExpectedType,LambdaMustHaveFunctionType,NotEqual,MustAnnotateLambda))
 import PrettyPrint (display)
 
@@ -120,6 +120,31 @@ dispP :: Term -> Html
 dispP (Prod Nothing Nothing) = txt ""
 dispP (Prod (Just a) b)      = dispP a <> maybe (txt "") (\x -> txt ", " <> dispP x) b
 dispP x                      = term x
+
+
+eterm :: ETerm -> Html
+eterm EType                              = wrap "type" $ keyword "Type"
+eterm (EVar (Var tname) _ _)                 = wrap "var" $ name tname
+eterm (ELam (Lam tname Nothing b) _ _ _ _)                            = wrap  "lam"   $ keyword "(\\" <> name tname <>                             keyword ". " <> term b <> keyword ")"
+eterm (ELam (Lam tname (Just t) b) _ _ _ _)                            = wrap  "lam"   $ keyword "(\\" <> name tname <> keyword ": " <> term t <> keyword ". " <> term b <> keyword ")"
+eterm (EApp (App f param) _ _ _)                     = wrap "app" $ keyword "(" <> term f <> txt " " <> term param <> keyword ")"
+eterm (EPi (Pi Nothing ptype rtype) _ _ _)          = wrap "pi" $ keyword "(" <> term ptype <> keyword " -> " <> term rtype <> keyword ")"
+eterm (EPi (Pi (Just tname) ptype rtype) _ _ _)     = wrap "pi" $ keyword "(" <> keyword "(" <> name tname <> keyword ": " <> term ptype <> keyword ") -> " <> term rtype <> keyword ")"
+
+eterm (EAnn (Ann tr t UserGiven) _ _)              = wrap  "ann"   $ keyword "(" <> term tr <> keyword ": " <> term t <> keyword ")"
+eterm (EAnn (Ann (Comment _) t Inferred) _ _)      = wrap2 "ann" t $ term t
+
+eterm (ELet (Let decls b) _ _)                     = wrap "let" $ keyword "let " <> br <> "\n" <> foldMap term decls <> br <> "\n" <> keyword "in" <> br <> "\n" <> term b
+
+-- FIXME:
+eterm (ESig (Sig tname _) _ _) | last tname == '_' = ""
+eterm (ESig (Sig tname t) _ _)                     = wrap "sig" $ "\n" <> name tname <> keyword " : " <> term t <> "\n"
+eterm (EDef (Def tname _) _ _ _) | last tname == '_' = ""
+eterm (EDef (Def tname b@Lam{}) _ _ _) | isRecord b  = wrap "def" $ name tname <> recordParams b
+eterm (EDef (Def tname b) _ _ _)                     = wrap "def" $ name tname <> keyword " = " <> term b
+
+eterm (ESigma s@Sigma{} _ _ _)                         = wrap "sigma" $ txt "{" <> dispS s <> txt "}"
+eterm (EProd p@(Prod _ _) _ _ _)                      = wrap "prod" $ txt "{" <> dispP p <> txt "}"
 
 
 

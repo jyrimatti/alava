@@ -11,11 +11,11 @@ import Data.Text.Lazy (Text,null)
 import qualified SimpleParser as P (expr,parse)
 import TypeCheck  (inferType)
 import Environment (emptyEnv)
-import Syntax (Term,Type,SourcePos)
+import Syntax (Term,EType,ETerm,SourcePos)
 import Error (Error)
 
 parse :: Text -> [Term]
 parse expr = fmap fst . filter (null . snd) $ P.parse P.expr expr
 
-infer :: MonadLogger m => Term -> m (Either [(Error, SourcePos)] (Term, Type))
+infer :: MonadLogger m => Term -> m (Either [(Error, SourcePos)] (ETerm, EType))
 infer expr = runExceptT $ inferType emptyEnv expr

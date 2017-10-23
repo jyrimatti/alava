@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, OverloadedLists #-}
 module Environment where
 
-import Foundation (($),(.),Maybe,fmap,(<>),listToMaybe,(==),(/=),filter,Bool(True,False))
+import Foundation (($),(.),Maybe,fmap,(<>),listToMaybe,(==),(/=))
 import Foundation.Collection (intercalate)
 
 import Prelude (Show)
@@ -11,15 +11,15 @@ import GHC.Stack (HasCallStack)
 import Data.Text.Lazy (Text,pack,unpack)
 
 import PrettyPrint (display)
-import Syntax (Term(Def,Sig),SourcePos(SourcePos),TName)
+import Syntax (ETerm(EDef,ESig),SourcePos(SourcePos),TName)
 
 show :: Show a => a -> Text
 show = pack . P.show
 
-data Env = Env { ctx :: [Term], sourceLocation :: [SourcePos] }
+data Env = Env { ctx :: [ETerm], sourceLocation :: [SourcePos] }
 
 instance Show Env where
-  show (Env c pos) = unpack $ intercalate "\n" (fmap (\t -> display t <> "   ... " <> show t) c) <> "\n" <> show pos
+  show (Env c pos) = unpack $ intercalate "\n" (fmap (\t -> "\n  " <> display t <> "   ... " <> show t) c) <> "\n" <> show pos
 
 emptyEnv :: Env
 emptyEnv = Env {
@@ -27,24 +27,19 @@ emptyEnv = Env {
     sourceLocation = []
 }
 
-lookupDef :: Env -> TName -> Maybe Term
-lookupDef env v = listToMaybe [a | Def v' a <- ctx env, v == v']
+lookupDef :: Env -> TName -> Maybe ETerm
+lookupDef env v = listToMaybe [a | EDef _ v' a _ <- ctx env, v == v']
 
-lookupTy :: Env -> TName -> Maybe Term
-lookupTy env v = listToMaybe [ty | Sig v' ty <- ctx env, v == v'] 
+lookupTy :: Env -> TName -> Maybe ETerm
+lookupTy env v = listToMaybe [ty | ESig _ v' ty <- ctx env, v == v'] 
 
-extendCtx :: HasCallStack => Term -> Env -> Env
-extendCtx d@(Sig name _) env = case [x | Sig x _ <- ctx env, x == name] of
+extendCtx :: HasCallStack => ETerm -> Env -> Env
+extendCtx d@(ESig _ name _) env = case [x | ESig _ x _ <- ctx env, x == name] of
     [_] | name /= "_" -> P.error (unpack $ "Already in context: " <> show d)
     _ -> env { ctx = d : ctx env }
-extendCtx d@(Def name _) env = case [x | Def x _ <- ctx env, x == name] of
+extendCtx d@(EDef _ name _ _) env = case [x | EDef _ x _ _ <- ctx env, x == name] of
     [_] | name /= "_" -> P.error (unpack $ "Already in context: " <> show d)
     _ -> env { ctx = d : ctx env }
-
-removeFromCtx :: HasCallStack => Text -> Env -> Env
-removeFromCtx name env = env { ctx = filter f (ctx env) }
-  where f (Def n _) | n == name = False
-        f _ = True
 
 extendSourceLocation :: SourcePos -> Env -> Env
 extendSourceLocation pos env = env { sourceLocation = pos : sourceLocation env}
