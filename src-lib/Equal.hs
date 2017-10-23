@@ -70,7 +70,7 @@ equate_ env t1 t2 = let
     --(at1, Ann (Var x) at2 Inferred)  -> equate_ env at1 (fromMaybe at2 $ lookupDef env x)
     --(at1, Ann x at2 _)               -> equate_ env at1 x || equate_ env at1 at2
     (ELet _ xs1 body1, ELet _ xs2 body2)   -> equate_ env body1 body2 && all (uncurry (equate_ env)) (zip (sortBy o xs1) (sortBy o xs2))
-    (ESigma _ tyA1 tyB1 _, ESigma _ tyA2 tyB2 _) -> equateMaybe tyA1 tyA2 && equateMaybe tyB1 tyB2
+    (ESigma _ tyA1 tyB1, ESigma _ tyA2 tyB2) -> equateMaybe tyA1 tyA2 && equateMaybe tyB1 tyB2
     (EProd _ a1 a2 _, EProd _ b1 b2 _)         -> equateMaybe a1 b1 && equateMaybe a2 b2
     (EVar _ x _, _)                       -> recEquate x n2
     (_, EVar _ x _)                       -> recEquate x n1

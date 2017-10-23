@@ -184,20 +184,20 @@ tcTerm env t@(Sigma (Just x) (Just tyA) (Just tyB)) Nothing = do
   logDebug $ "tcTerm:    " <> show t
   (atyA,_) <- tcType env tyA
   (atyB,_) <- tcType (extendCtxSig x atyA env) tyB
-  logRet "Sigma1" (ESigma t (Just atyA) (Just atyB) EType) EType
+  logRet "Sigma1" (ESigma t (Just atyA) (Just atyB)) EType
 
 tcTerm env t@(Sigma (Just _) (Just tyA) Nothing) Nothing = do        
   logDebug $ "tcTerm:    " <> show t
   (atyA,_) <- tcType env tyA
-  logRet "Sigma2" (ESigma t (Just atyA) Nothing EType) EType
+  logRet "Sigma2" (ESigma t (Just atyA) Nothing) EType
 
 tcTerm _ t@(Sigma Nothing Nothing Nothing) Nothing = do
   logDebug $ "tcTerm:    " <> show t
-  logRet "Sigma3" (ESigma t Nothing Nothing EType) EType
+  logRet "Sigma3" (ESigma t Nothing Nothing) EType
 
 tcTerm _ t@(Prod Nothing Nothing) Nothing = do
   logDebug $ "tcTerm:    " <> show t
-  let etype = ESigma Type Nothing Nothing EType
+  let etype = ESigma Type Nothing Nothing
   logRet "Prod" (EProd t Nothing Nothing etype) etype
 
 tcTerm env t@(Prod (Just a) b) Nothing = do
@@ -208,10 +208,10 @@ tcTerm env t@(Prod (Just a) b) Nothing = do
     Just c -> do
       (mec,tyC) <- inferType env c
       pure (Just mec, Just tyC)
-  let etype = ESigma Type (Just tyA) mtyB EType
+  let etype = ESigma Type (Just tyA) mtyB
   logRet "Prod" (EProd t (Just ea) meb etype) etype
 
-tcTerm env t@(Prod (Just a) b) ann@(Just (Whnf w@(ESigma _ (Just aa) bb _))) = do
+tcTerm env t@(Prod (Just a) b) ann@(Just (Whnf w@(ESigma _ (Just aa) bb))) = do
   logDebug $ "tcTerm:    " <> show t <> "\n                   " <> show ann
   (ea,tyA) <- checkType env a aa
   (meb, mtyB) <- case (b,bb) of
@@ -220,7 +220,7 @@ tcTerm env t@(Prod (Just a) b) ann@(Just (Whnf w@(ESigma _ (Just aa) bb _))) = d
         pure (Just eb, Just tyB)
       (Nothing, Nothing) -> pure (Nothing,Nothing)
       _                  -> throwError $ err $ NotEqual env w t
-  let etype = ESigma Type (Just tyA) mtyB EType
+  let etype = ESigma Type (Just tyA) mtyB
   logRet "Prod" (EProd t (Just ea) meb etype) etype
       
 tcTerm env tm a@(Just (Whnf ty)) = do

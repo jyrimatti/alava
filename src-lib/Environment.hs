@@ -21,9 +21,9 @@ data EnvElement = Sig Text EType | Def Text ETerm deriving Show
 data Env = Env { ctx :: [EnvElement], sourceLocation :: [SourcePos] }
 
 instance Show Env where
-  show (Env c pos) = unpack $ intercalate "\n" (fmap foo c) <> "\n" <> show pos
-    where foo (Sig name etype) = "\n  " <> name <> " : " <> display etype <> "   ... " <> show etype
-          foo (Def name eterm) = "\n  " <> name <> " = " <> display eterm <> "   ... " <> show eterm
+  show (Env c pos) = unpack $ intercalate "\n" (fmap showElement c) <> "\n" <> show pos
+    where showElement (Sig name etype) = "\n  " <> name <> " : " <> display etype <> "   ... " <> show etype
+          showElement (Def name eterm) = "\n  " <> name <> " = " <> display eterm <> "   ... " <> show eterm
 
 emptyEnv :: Env
 emptyEnv = Env {

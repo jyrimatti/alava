@@ -62,7 +62,7 @@ data ETerm =
    | ESig Term TName EType
    | EDef Term TName ETerm EType
 
-   | ESigma Term (Maybe EType) (Maybe EType) EType
+   | ESigma Term (Maybe EType) (Maybe EType)
     
    | EProd Term (Maybe ETerm) (Maybe ETerm) EType
    | ECase Term ETerm ETerm ETerm EType

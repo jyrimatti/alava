@@ -143,7 +143,7 @@ eterm (EDef (Def tname _) _ _ _) | last tname == '_' = ""
 eterm (EDef (Def tname b@Lam{}) _ _ _) | isRecord b  = wrap "def" $ name tname <> recordParams b
 eterm (EDef (Def tname b) _ _ _)                     = wrap "def" $ name tname <> keyword " = " <> term b
 
-eterm (ESigma s@Sigma{} _ _ _)                         = wrap "sigma" $ txt "{" <> dispS s <> txt "}"
+eterm (ESigma s@Sigma{} _ _)                         = wrap "sigma" $ txt "{" <> dispS s <> txt "}"
 eterm (EProd p@(Prod _ _) _ _ _)                      = wrap "prod" $ txt "{" <> dispP p <> txt "}"
 
 

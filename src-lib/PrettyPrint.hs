@@ -58,6 +58,6 @@ instance Display ETerm where
   display (ELet term _ _) = display term
   display (ESig term _ _) = display term
   display (EDef term _ _ _) = display term
-  display (ESigma term _ _ _) = display term
+  display (ESigma term _ _) = display term
   display (EProd term _ _ _) = display term
   display (ECase term _ _ _ _) = display term
