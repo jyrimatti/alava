@@ -11,15 +11,19 @@ import GHC.Stack (HasCallStack)
 import Data.Text.Lazy (Text,pack,unpack)
 
 import PrettyPrint (display)
-import Syntax (ETerm(EDef,ESig),SourcePos(SourcePos),TName)
+import Syntax (ETerm,EType,SourcePos(SourcePos),TName)
 
 show :: Show a => a -> Text
 show = pack . P.show
 
-data Env = Env { ctx :: [ETerm], sourceLocation :: [SourcePos] }
+data EnvElement = Sig Text EType | Def Text ETerm deriving Show
+
+data Env = Env { ctx :: [EnvElement], sourceLocation :: [SourcePos] }
 
 instance Show Env where
-  show (Env c pos) = unpack $ intercalate "\n" (fmap (\t -> "\n  " <> display t <> "   ... " <> show t) c) <> "\n" <> show pos
+  show (Env c pos) = unpack $ intercalate "\n" (fmap foo c) <> "\n" <> show pos
+    where foo (Sig name etype) = "\n  " <> name <> " : " <> display etype <> "   ... " <> show etype
+          foo (Def name eterm) = "\n  " <> name <> " = " <> display eterm <> "   ... " <> show eterm
 
 emptyEnv :: Env
 emptyEnv = Env {
@@ -28,18 +32,19 @@ emptyEnv = Env {
 }
 
 lookupDef :: Env -> TName -> Maybe ETerm
-lookupDef env v = listToMaybe [a | EDef _ v' a _ <- ctx env, v == v']
+lookupDef env v = listToMaybe [a | Def v' a <- ctx env, v == v']
 
 lookupTy :: Env -> TName -> Maybe ETerm
-lookupTy env v = listToMaybe [ty | ESig _ v' ty <- ctx env, v == v'] 
+lookupTy env v = listToMaybe [ty | Sig v' ty <- ctx env, v == v'] 
 
-extendCtx :: HasCallStack => ETerm -> Env -> Env
-extendCtx d@(ESig _ name _) env = case [x | ESig _ x _ <- ctx env, x == name] of
-    [_] | name /= "_" -> P.error (unpack $ "Already in context: " <> show d)
-    _ -> env { ctx = d : ctx env }
-extendCtx d@(EDef _ name _ _) env = case [x | EDef _ x _ _ <- ctx env, x == name] of
-    [_] | name /= "_" -> P.error (unpack $ "Already in context: " <> show d)
-    _ -> env { ctx = d : ctx env }
+extendCtxSig :: HasCallStack => Text -> EType -> Env -> Env
+extendCtxSig name etype env = case [x | Sig x _ <- ctx env, x == name] of
+    [_] | name /= "_" -> P.error (unpack $ "Already in context: " <> name)
+    _ -> env { ctx = Sig name etype : ctx env }
+extendCtxDef :: HasCallStack => Text -> ETerm -> Env -> Env
+extendCtxDef name eterm env = case [x | Def x _ <- ctx env, x == name] of
+    [_] | name /= "_" -> P.error (unpack $ "Already in context: " <> name)
+    _ -> env { ctx = Def name eterm : ctx env }
 
 extendSourceLocation :: SourcePos -> Env -> Env
 extendSourceLocation pos env = env { sourceLocation = pos : sourceLocation env}

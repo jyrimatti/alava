@@ -17,7 +17,7 @@ import Control.Monad (foldM)
 import Data.Text (Text,pack,unpack)
 
 import Syntax (Type,EType,Term(Var,Type,Pi,Lam,App,Ann,Pos,Paren,Let,Sig,Def,Comment,Sigma,Prod),AnnType(Inferred),ETerm(EVar,EType,EPi,ELam,EApp,EAnn,ELet,ESig,EDef,ESigma,EProd))
-import Environment (Env,lookupTy,extendCtx,extendSourceLocation)
+import Environment (Env,lookupTy,extendCtxSig,extendCtxDef,extendSourceLocation)
 import Equal (ResultM,Whnf(Whnf),whnf,equate,ensurePi)
 import Substitution (subst)
 import Error (err, Error(NotInScope,NotEqual,LambdaMustHaveFunctionType,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedType,MustAnnotateLambda))
@@ -70,7 +70,7 @@ tcTerm _ t@Type Nothing = do
 tcTerm env t@(Pi x tyA tyB) Nothing = do
   logDebug $ "tcTerm:    " <> show t
   (atyA,_) <- tcType env tyA
-  (atyB,_) <- tcType (case x of Just xx -> extendCtx (ESig (Sig xx tyA) xx atyA) env; Nothing -> env) tyB
+  (atyB,_) <- tcType (case x of Just xx -> extendCtxSig xx atyA env; Nothing -> env) tyB
   logRet "Pi" (EPi t x atyA atyB) EType
       
 -- Check the type of a function
@@ -85,7 +85,7 @@ tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(EPi _ _ tyA tyB))) = do
                  else throwError $ err $ NotEqual env tyA aa
         Nothing -> pure tyA
     -- check the type of the body of the lambda expression
-    let newEnv = extendCtx (ESig Type x ea) env    
+    let newEnv = extendCtxSig x ea env    
     (ebody, tbody) <- checkType newEnv body tyB
     logRet "Lam1" (ELam t x ea ebody tbody) p
 
@@ -103,7 +103,7 @@ tcTerm env t@(Lam x (Just annot) body) Nothing = do
     -- check that the type annotation is well-formed
     (atyA,_)          <- tcType env annot
     -- infer the type of the body of the lambda expression
-    let newEnv     = extendCtx (ESig (Sig x annot) x atyA) env
+    let newEnv     = extendCtxSig x atyA env
     (ebody, atyB) <- inferType newEnv body
     logRet "Lam2" (ELam t x atyA ebody atyB) (EPi Type (Just x) atyA atyB)
 
@@ -147,14 +147,14 @@ tcTerm env t@(Let xs body) ann = do
     --foo a          (Sig n (Pos _ ty)) = foo a (Sig n ty)
     foo (e,exs)    (Sig n ty) = do
         (ety,_)    <- inferType e ty
-        let newEnv = extendCtx (ESig (Sig n ty) n ety) e
+        let newEnv = extendCtxSig n ety e
         pure (newEnv, ESig Type n ety : exs)
     --foo a          (Def n (Pos _ x)) = foo a (Def n x)
     foo (e,exs)    d@(Def name x) = case lookupTy e name of
         Nothing -> throwError $ err $ NotInScope e name
         Just ty -> do
                     (et2, tt2) <- checkType e x ty
-                    let newEnv2 = extendCtx (EDef d name et2 tt2) e
+                    let newEnv2 = extendCtxDef name et2 e
                     pure (newEnv2, EDef Type name et2 tt2 : exs)
   (newEnv, exs)  <- foldM foo (env,[]) xs
   (ebody, etype) <- tcTerm newEnv body ann
@@ -183,10 +183,10 @@ tcTerm env t@(Def name body) ann = do
 tcTerm env t@(Sigma (Just x) (Just tyA) (Just tyB)) Nothing = do        
   logDebug $ "tcTerm:    " <> show t
   (atyA,_) <- tcType env tyA
-  (atyB,_) <- tcType (extendCtx (ESig (Sig x tyA) x atyA) env) tyB
+  (atyB,_) <- tcType (extendCtxSig x atyA env) tyB
   logRet "Sigma1" (ESigma t (Just atyA) (Just atyB) EType) EType
 
-tcTerm env t@(Sigma (Just x) (Just tyA) Nothing) Nothing = do        
+tcTerm env t@(Sigma (Just _) (Just tyA) Nothing) Nothing = do        
   logDebug $ "tcTerm:    " <> show t
   (atyA,_) <- tcType env tyA
   logRet "Sigma2" (ESigma t (Just atyA) Nothing EType) EType

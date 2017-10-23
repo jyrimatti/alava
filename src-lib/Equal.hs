@@ -20,7 +20,7 @@ import Control.Monad.Logger.CallStack ()
 import Control.Monad.Except (ExceptT,throwError)
 
 import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Paren,Let,Def,Sig,Sigma,Prod,Pos),SourcePos,Type,TName,ETerm(EType,EVar,ELam,EApp,EPi,EAnn,ELet,EDef,ESig,ESigma,EProd),EType)
-import Environment (Env,lookupDef,extendCtx)
+import Environment (Env,lookupDef,extendCtxSig,extendCtxDef)
 import Substitution (subst)
 import Error(Error(ExpectedFunctionType),err)
 
@@ -105,11 +105,11 @@ whnf' env b (EApp t t1 t2 tt) = case whnf' env b t1 of
 whnf' env b (ELet _ xs body) = let
   foo e (ESig t n ty) = let
       ety = whnf' e b ty
-    in extendCtx (ESig t n ety) e
+    in extendCtxSig n ety e
   foo e (EDef t name x y) = let
       ety = whnf' e b x
       ety2 = whnf' e b y
-    in extendCtx (EDef t name ety ety2) e
+    in extendCtxDef name ety e
   newEnv = foldl foo env xs
   in whnf' newEnv b body
 
