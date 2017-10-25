@@ -47,17 +47,14 @@ data Term =
   deriving Eq                  
 
 data ETerm = 
-   -- Core language
      EType
    | EVar Term TName EType
    | ELam Term TName EType ETerm EType
    | EApp Term ETerm ETerm EType
    | EPi  Term (Maybe TName) EType EType
    
-   -- Explicit type hints for terms
    | EAnn Term ETerm EType
 
-   -- Modules
    | ELet Term [ETerm] EType
    | ESig Term TName EType
    | EDef Term TName ETerm EType

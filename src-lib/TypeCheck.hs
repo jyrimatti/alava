@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module TypeCheck where
 
-import Foundation (($),(.),Maybe(Just,Nothing),pure,fromMaybe,(<>))
+import Foundation (($),(.),Maybe(Just,Nothing),pure,(<>))
 import Foundation.Collection (reverse)
 
 import Prelude (Show)
@@ -11,16 +11,16 @@ import GHC.Stack (HasCallStack)
 
 import Control.Monad.Logger (MonadLogger)
 import Control.Monad.Logger.CallStack (logDebug)
-import Control.Monad.Except (withExceptT,throwError)
+import Control.Monad.Except (withExceptT)
 import Control.Monad (foldM)
 
 import Data.Text (Text,pack,unpack)
 
-import Syntax (Type,EType,Term(Var,Type,Pi,Lam,App,Ann,Pos,Paren,Let,Sig,Def,Comment,Sigma,Prod),AnnType(Inferred),ETerm(EVar,EType,EPi,ELam,EApp,EAnn,ELet,ESig,EDef,ESigma,EProd))
+import Syntax (EType,Term(Var,Type,Pi,Lam,App,Ann,Pos,Paren,Let,Sig,Def,Sigma,Prod),ETerm(EVar,EType,EPi,ELam,EApp,ELet,ESig,EDef,ESigma,EProd))
 import Environment (Env,lookupTy,extendCtxSig,extendCtxDef,extendSourceLocation)
-import Equal (ResultM,Whnf(Whnf),whnf,equate,ensurePi)
+import Equal (Whnf(Whnf),whnf,equate,ensurePi)
 import Substitution (subst)
-import Error (err, Error(NotInScope,NotEqual,LambdaMustHaveFunctionType,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedType,MustAnnotateLambda))
+import Error (ResultM,throwErr,err,Error(NotInScope,NotEqual,LambdaMustHaveFunctionType,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedType,MustAnnotateLambda))
 
 show :: Show a => a -> Text
 show = pack . P.show
@@ -57,7 +57,7 @@ tcTerm env t@(Var x) Nothing = do
   case lookupTy env x of
     --Just tyx -> logRet "Var" (Ann t tyx Inferred) tyx
     Just tyx -> logRet "Var" (EVar t x tyx) tyx
-    Nothing -> throwError $ err $ NotInScope env x
+    Nothing -> throwErr $ NotInScope env x
 
 --tcTerm env t@(Ann term _ Inferred) Nothing = inferType env term
 --tcTerm env t@(Ann term _ Inferred) (Just (Whnf ann)) = checkType env term ann
@@ -82,7 +82,7 @@ tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(EPi _ _ tyA tyB))) = do
           (aat,_) <- tcType env aa
           res <- equate env tyA aat
           if res then pure tyA
-                 else throwError $ err $ NotEqual env tyA aa
+                 else throwErr $ NotEqual env tyA aa
         Nothing -> pure tyA
     -- check the type of the body of the lambda expression
     let newEnv = extendCtxSig x ea env    
@@ -92,9 +92,9 @@ tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(EPi _ _ tyA tyB))) = do
 --tcTerm env t@(Lam "_" s1 s2) (Just (Whnf Type)) = do
 --  todo: --pure (t, Type)
 
-tcTerm env t@Lam{} (Just (Whnf nf)) = throwError $ err $ LambdaMustHaveFunctionType env t nf
+tcTerm env t@Lam{} (Just (Whnf nf)) = throwErr $ LambdaMustHaveFunctionType env t nf
 
-tcTerm env t@(Lam _ Nothing _) Nothing = throwError $ err $ MustAnnotateLambda env t
+tcTerm env t@(Lam _ Nothing _) Nothing = throwErr $ MustAnnotateLambda env t
 
 -- infer the type of a lambda expression, when an annotation
 -- on the binder is present
@@ -151,7 +151,7 @@ tcTerm env t@(Let xs body) ann = do
         pure (newEnv, ESig Type n ety : exs)
     --foo a          (Def n (Pos _ x)) = foo a (Def n x)
     foo (e,exs)    d@(Def name x) = case lookupTy e name of
-        Nothing -> throwError $ err $ NotInScope e name
+        Nothing -> throwErr $ NotInScope e name
         Just ty -> do
                     (et2, tt2) <- checkType e x ty
                     let newEnv2 = extendCtxDef name et2 e
@@ -219,7 +219,7 @@ tcTerm env t@(Prod (Just a) b) ann@(Just (Whnf w@(ESigma _ (Just aa) bb))) = do
         (eb, tyB) <- checkType env c cc
         pure (Just eb, Just tyB)
       (Nothing, Nothing) -> pure (Nothing,Nothing)
-      _                  -> throwError $ err $ NotEqual env w t
+      _                  -> throwErr $ NotEqual env w t
   let etype = ESigma Type (Just tyA) mtyB
   logRet "Prod" (EProd t (Just ea) meb etype) etype
       
@@ -229,6 +229,6 @@ tcTerm env tm a@(Just (Whnf ty)) = do
     (atm, ty') <- inferType env tm
     res <- equate env ty' ty
     if res then logRet "_" atm ty
-           else throwError $ err $ TypesDontMatch env tm ty' ty
+           else throwErr $ TypesDontMatch env tm ty' ty
                          
 tcTerm _ tm tt = P.error $ unpack $ "(" <> show tm <> ") (" <> show tt <> ")"

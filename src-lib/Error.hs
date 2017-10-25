@@ -9,8 +9,8 @@ import qualified Prelude as P (show,String)
 import Data.Text.Lazy (Text,pack,unpack,intercalate)
 
 import Control.Monad.Morph ()
-import Control.Monad.Logger.CallStack ()
-import Control.Monad.Except ()
+import Control.Monad.Logger.CallStack (MonadLogger)
+import Control.Monad.Except (ExceptT,throwError)
 
 import Syntax (Term,SourcePos,Type,ETerm,EType)
 import Environment (Env,getSourceLocation)
@@ -19,13 +19,16 @@ import PrettyPrint (display)
 show :: Show a => a -> Text
 show = pack . P.show
 
+type ResultM = ExceptT [(Error,SourcePos)]
+
 err :: Error -> [(Error,SourcePos)]
 err e = [(e, getSourceLocation (getEnv e))]
 
-unlines :: [Text] -> P.String
-unlines = unpack . intercalate "\n"
+throwErr :: MonadLogger m => Error -> ResultM m a
+throwErr = throwError . err
 
-data Error = NotInScope Env Text
+data Error = DefinitionNotFound Env Text ETerm
+           | NotInScope Env Text
            | NotEqual Env EType Type
            | LambdaMustHaveFunctionType Env Term EType
            | ExpectedFunctionType Env ETerm EType
@@ -36,6 +39,7 @@ data Error = NotInScope Env Text
            | MustAnnotateLambda Env Term
 
 getEnv :: Error -> Env
+getEnv (DefinitionNotFound e _ _) = e
 getEnv (NotInScope e _) = e
 getEnv (NotEqual e _ _) = e
 getEnv (LambdaMustHaveFunctionType e _ _) = e
@@ -46,8 +50,18 @@ getEnv (AppTypesDontMatch e _ _ _) = e
 getEnv (CouldNotInferType e _) = e
 getEnv (MustAnnotateLambda e _) = e
 
+unlines :: [Text] -> P.String
+unlines = unpack . intercalate "\n"
 
 instance Show Error where
+  show (DefinitionNotFound env var expected) = unlines
+    ["Definition not found for variable:"
+    ,"  " <> var
+    ,"Expected:"
+    ,"  " <> display expected <> "   ... " <> show expected
+    ,"Env:"
+    ,show env
+    ]
   show (NotInScope env var) = unlines
     ["Not in scope:"
     ,"  " <> var
