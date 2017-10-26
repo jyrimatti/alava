@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module Error where
 
-import Foundation ((.),(<>))
+import Foundation ((.),(<>),Maybe)
 
 import Prelude (Show)
 import qualified Prelude as P (show,String)
@@ -19,9 +19,9 @@ import PrettyPrint (display)
 show :: Show a => a -> Text
 show = pack . P.show
 
-type ResultM = ExceptT [(Error,SourcePos)]
+type ResultM = ExceptT [(Error,Maybe SourcePos)]
 
-err :: Error -> [(Error,SourcePos)]
+err :: Error -> [(Error,Maybe SourcePos)]
 err e = [(e, getSourceLocation (getEnv e))]
 
 throwErr :: MonadLogger m => Error -> ResultM m a

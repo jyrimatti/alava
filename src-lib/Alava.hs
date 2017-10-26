@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Alava where
 
-import Foundation (($),(.),fmap,fst,snd,Either,filter)
+import Foundation (($),(.),fmap,fst,snd,Either,filter,Maybe)
 
 import Control.Monad.Logger (MonadLogger())
 import Control.Monad.Except (runExceptT)
@@ -17,5 +17,5 @@ import Error (Error)
 parse :: Text -> [Term]
 parse expr = fmap fst . filter (null . snd) $ P.parse P.expr expr
 
-infer :: MonadLogger m => Term -> m (Either [(Error, SourcePos)] (ETerm, EType))
+infer :: MonadLogger m => Term -> m (Either [(Error, Maybe SourcePos)] (ETerm, EType))
 infer expr = runExceptT $ inferType emptyEnv expr

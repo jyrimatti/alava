@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, OverloadedLists #-}
 module Environment where
 
-import Foundation (($),(.),Maybe,fmap,(<>),listToMaybe,(==),(/=))
+import Foundation (($),(.),Maybe(Just),fmap,(<>),listToMaybe,(==),(/=),pure)
 import Foundation.Collection (intercalate)
 
 import Prelude (Show)
@@ -32,24 +32,31 @@ emptyEnv = Env {
 }
 
 lookupDef :: Env -> TName -> Maybe ETerm
-lookupDef env v = listToMaybe [a | Def v' a <- ctx env, v == v']
+lookupDef env name = listToMaybe $ do
+    elem <- ctx env
+    case elem of
+        Def defname value | defname == name -> pure value
+        _                                   -> []
 
-lookupTy :: Env -> TName -> Maybe ETerm
-lookupTy env v = listToMaybe [ty | Sig v' ty <- ctx env, v == v'] 
+lookupSig :: Env -> TName -> Maybe EType
+lookupSig env name = listToMaybe $ do
+    elem <- ctx env
+    case elem of
+        Sig signame value | signame == name -> pure value
+        _                                   -> []
 
 extendCtxSig :: HasCallStack => Text -> EType -> Env -> Env
-extendCtxSig name etype env = case [x | Sig x _ <- ctx env, x == name] of
-    [_] | name /= "_" -> P.error (unpack $ "Already in context: " <> name)
-    _ -> env { ctx = Sig name etype : ctx env }
+extendCtxSig name etype env = case lookupSig env name of
+    Just _ | name /= "_" -> P.error (unpack $ "Already in context: " <> name)
+    _                    -> env { ctx = Sig name etype : ctx env }
+
 extendCtxDef :: HasCallStack => Text -> ETerm -> Env -> Env
-extendCtxDef name eterm env = case [x | Def x _ <- ctx env, x == name] of
-    [_] | name /= "_" -> P.error (unpack $ "Already in context: " <> name)
-    _ -> env { ctx = Def name eterm : ctx env }
+extendCtxDef name eterm env = case lookupDef env name of
+    Just _ | name /= "_" -> P.error (unpack $ "Already in context: " <> name)
+    _                    -> env { ctx = Def name eterm : ctx env }
 
 extendSourceLocation :: SourcePos -> Env -> Env
 extendSourceLocation pos env = env { sourceLocation = pos : sourceLocation env}
 
-getSourceLocation :: Env -> SourcePos
-getSourceLocation e = case sourceLocation e of
-    x:_ -> x
-    []  -> SourcePos (-1) (-1)
+getSourceLocation :: Env -> Maybe SourcePos
+getSourceLocation = listToMaybe . sourceLocation

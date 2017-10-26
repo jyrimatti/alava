@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, OverloadedStrings, GADTs, FlexibleContexts #-}
 module Main where
 
-import Foundation (($),(.),fmap,fst,IO,(<>),Either(Left,Right),Bool(True,False),toList,uncurry)
+import Foundation (($),(.),fmap,fst,IO,(<>),Either(Left,Right),Bool(True,False),toList,uncurry,Maybe)
 import Foundation.IO (readFile)
 import Foundation.VFS ((</>),FileName,FilePath)
 import Foundation.String (fromBytes,Encoding(UTF8))
@@ -42,5 +42,5 @@ doTest content = do
     Right _ -> assertBool "" True
     Left errors -> assertBool (unpack $ showErrors errors) False
 
-showErrors :: [(Error,SourcePos)] -> Text
+showErrors :: [(Error,Maybe SourcePos)] -> Text
 showErrors = foldMap (\(err,pos) -> pack $ P.show pos <> ": " <> P.show err <> "\n")

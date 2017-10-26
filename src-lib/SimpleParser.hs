@@ -336,11 +336,10 @@ recorddef = toDef <$> var <*> many (ws *> factor) <* (ws <* char '=' <* ws) <*> 
         name (Var x) = Lam x Nothing
         name (Pos _ x) = name x
         name (Ann x _ _) = name x
-        toDef (Pos pos (Var a)) ts rec = [ --Pos pos $ Def a $ foldr toPi rec ts
-                                              Pos pos $ Def a $ foldr name rec ts
-                                            , Pos pos $ Sig (a<>"_") $ foldr toPi (toP rec) ts
-                                            , Pos pos $ Def (a<>"_") $ foldr (\_ b -> Lam "_" Nothing b) (toLam rec) ts
-                                            ]
+        toDef (Pos pos (Var a)) ts rec = [ Pos pos $ Def a $ foldr name rec ts
+                                         , Pos pos $ Sig (a<>"_") $ foldr toPi (toP rec) ts
+                                         , Pos pos $ Def (a<>"_") $ foldr (\_ b -> Lam "_" Nothing b) (toLam rec) ts
+                                         ]
         -- todo: saisiko hieman elegantimmin...
         toP   rec@(Pos _ (Sigma Nothing Nothing Nothing)) = rec
         toP   rec                                         = (Pi Nothing rec rec)                          

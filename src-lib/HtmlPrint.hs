@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module HtmlPrint where
 
-import Foundation (($),(.),Maybe(Nothing,Just),toList,return,(<>),(==),maybe,Bool(True,False))
+import Foundation (($),(.),Maybe(Nothing,Just),return,(<>),(==),maybe,Bool(True,False))
 
 import Prelude (Show)
 import qualified Prelude as P (show)
@@ -60,19 +60,16 @@ footer =
       "tippy('span[title]', {theme: 'menu light'})"
 
 wrap :: Text -> Html -> Html
-wrap cls = span ! A.class_ (toValue $ "a-" <> cls)
+wrap expressionType = span ! A.class_ (toValue $ "a-" <> expressionType)
 
 wrap2 :: Text -> Term -> Html -> Html
-wrap2 cls etype = span ! A.class_ (toValue $ "a-" <> cls) ! A.title (toValue $ TB.renderHtml $ term etype)
-
-txt :: Text -> Html
-txt = toHtml . toList
+wrap2 expressionType etype = span ! A.class_ (toValue $ "a-" <> expressionType) ! A.title (toValue $ TB.renderHtml $ term etype)
 
 keyword :: Text -> Html
-keyword str = toHtml (toList str) ! A.class_ "a-keyword"
+keyword str = toHtml str ! A.class_ "a-keyword"
 
 name :: Text -> Html
-name str = toHtml (toList str) ! A.class_ "a-name"
+name str = toHtml str ! A.class_ "a-name"
 
 term :: Term -> Html
 term Type                              = wrap "type" $ keyword "Type"
@@ -80,7 +77,7 @@ term (Var tname)                       = wrap "var" $ name tname
 term (Lam tname Nothing b)                             = wrap  "lam"   $ keyword "(\\" <> name tname <>                             keyword ". " <> term b <> keyword ")"
 term (Lam tname (Just (Ann (Comment _) t Inferred)) b) = wrap2 "lam" t $ keyword "(\\" <> name tname <>                             keyword ". " <> term b <> keyword ")"
 term (Lam tname (Just t) b)                            = wrap  "lam"   $ keyword "(\\" <> name tname <> keyword ": " <> term t <> keyword ". " <> term b <> keyword ")"
-term (App f param)                     = wrap "app" $ keyword "(" <> term f <> txt " " <> term param <> keyword ")"
+term (App f param)                     = wrap "app" $ keyword "(" <> term f <> " " <> term param <> keyword ")"
 term (Pi Nothing ptype rtype)          = wrap "pi" $ keyword "(" <> term ptype <> keyword " -> " <> term rtype <> keyword ")"
 term (Pi (Just tname) ptype rtype)     = wrap "pi" $ keyword "(" <> keyword "(" <> name tname <> keyword ": " <> term ptype <> keyword ") -> " <> term rtype <> keyword ")"
 
@@ -96,12 +93,12 @@ term (Def tname _) | last tname == '_' = ""
 term (Def tname b@Lam{}) | isRecord b  = wrap "def" $ name tname <> recordParams b
 term (Def tname b)                     = wrap "def" $ name tname <> keyword " = " <> term b
 
-term (Comment text)                    = wrap "comment" $ txt "{-" <> txt text <> txt "-}"
+term (Comment text)                    = wrap "comment" $ "{-" <> toHtml text <> "-}"
 term (Paren t)                         = wrap "paren" $ keyword "(" <> term t <> keyword ")"
 term (Pos (SourcePos line col) t)      = span ! dataAttribute "line" (toValue line) ! dataAttribute "column" (toValue col) $ term t
 
-term s@Sigma{}                         = wrap "sigma" $ txt "{" <> dispS s <> txt "}"
-term p@(Prod _ _)                      = wrap "prod" $ txt "{" <> dispP p <> txt "}"
+term s@Sigma{}                         = wrap "sigma" $ "{" <> dispS s <> "}"
+term p@(Prod _ _)                      = wrap "prod" $ "{" <> dispP p <> "}"
 
 isRecord :: Term -> Bool
 isRecord (Lam _ _ Sigma{}) = True
@@ -112,13 +109,13 @@ recordParams (Lam x (Just t) b) = " (" <> name x <> keyword ": " <> term t <> ")
 recordParams b                  = keyword " = " <> term b
 
 dispS :: Term -> Html
-dispS (Sigma Nothing Nothing Nothing) = txt ""
-dispS (Sigma ma (Just b) c)           = maybe "" (\a -> txt a <> txt ": ") ma <> dispS b <> maybe (txt "") (\x -> txt ", " <> dispS x) c
+dispS (Sigma Nothing Nothing Nothing) = ""
+dispS (Sigma ma (Just b) c)           = maybe "" (\a -> toHtml a <> ": ") ma <> dispS b <> maybe "" (\x -> ", " <> dispS x) c
 dispS x                               = term x
 
 dispP :: Term -> Html
-dispP (Prod Nothing Nothing) = txt ""
-dispP (Prod (Just a) b)      = dispP a <> maybe (txt "") (\x -> txt ", " <> dispP x) b
+dispP (Prod Nothing Nothing) = ""
+dispP (Prod (Just a) b)      = dispP a <> maybe "" (\x -> ", " <> dispP x) b
 dispP x                      = term x
 
 
@@ -127,7 +124,7 @@ eterm EType                              = wrap "type" $ keyword "Type"
 eterm (EVar (Var tname) _ _)                 = wrap "var" $ name tname
 eterm (ELam (Lam tname Nothing b) _ _ _ _)                            = wrap  "lam"   $ keyword "(\\" <> name tname <>                             keyword ". " <> term b <> keyword ")"
 eterm (ELam (Lam tname (Just t) b) _ _ _ _)                            = wrap  "lam"   $ keyword "(\\" <> name tname <> keyword ": " <> term t <> keyword ". " <> term b <> keyword ")"
-eterm (EApp (App f param) _ _ _)                     = wrap "app" $ keyword "(" <> term f <> txt " " <> term param <> keyword ")"
+eterm (EApp (App f param) _ _ _)                     = wrap "app" $ keyword "(" <> term f <> " " <> term param <> keyword ")"
 eterm (EPi (Pi Nothing ptype rtype) _ _ _)          = wrap "pi" $ keyword "(" <> term ptype <> keyword " -> " <> term rtype <> keyword ")"
 eterm (EPi (Pi (Just tname) ptype rtype) _ _ _)     = wrap "pi" $ keyword "(" <> keyword "(" <> name tname <> keyword ": " <> term ptype <> keyword ") -> " <> term rtype <> keyword ")"
 
@@ -143,8 +140,8 @@ eterm (EDef (Def tname _) _ _ _) | last tname == '_' = ""
 eterm (EDef (Def tname b@Lam{}) _ _ _) | isRecord b  = wrap "def" $ name tname <> recordParams b
 eterm (EDef (Def tname b) _ _ _)                     = wrap "def" $ name tname <> keyword " = " <> term b
 
-eterm (ESigma s@Sigma{} _ _)                         = wrap "sigma" $ txt "{" <> dispS s <> txt "}"
-eterm (EProd p@(Prod _ _) _ _ _)                      = wrap "prod" $ txt "{" <> dispP p <> txt "}"
+eterm (ESigma s@Sigma{} _ _)                         = wrap "sigma" $ "{" <> dispS s <> "}"
+eterm (EProd p@(Prod _ _) _ _ _)                      = wrap "prod" $ "{" <> dispP p <> "}"
 
 
 

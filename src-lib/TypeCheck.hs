@@ -17,7 +17,7 @@ import Control.Monad (foldM)
 import Data.Text (Text,pack,unpack)
 
 import Syntax (EType,Term(Var,Type,Pi,Lam,App,Ann,Pos,Paren,Let,Sig,Def,Sigma,Prod),ETerm(EVar,EType,EPi,ELam,EApp,ELet,ESig,EDef,ESigma,EProd))
-import Environment (Env,lookupTy,extendCtxSig,extendCtxDef,extendSourceLocation)
+import Environment (Env,lookupSig,extendCtxSig,extendCtxDef,extendSourceLocation)
 import Equal (Whnf(Whnf),whnf,equate,ensurePi)
 import Substitution (subst)
 import Error (ResultM,throwErr,err,Error(NotInScope,NotEqual,LambdaMustHaveFunctionType,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedType,MustAnnotateLambda))
@@ -54,7 +54,7 @@ tcTerm :: (MonadLogger m, HasCallStack) => Env -> Term -> Maybe Whnf -> ResultM 
 
 tcTerm env t@(Var x) Nothing = do
   logDebug $ "tcTerm:    " <> show t
-  case lookupTy env x of
+  case lookupSig env x of
     --Just tyx -> logRet "Var" (Ann t tyx Inferred) tyx
     Just tyx -> logRet "Var" (EVar t x tyx) tyx
     Nothing -> throwErr $ NotInScope env x
@@ -150,7 +150,7 @@ tcTerm env t@(Let xs body) ann = do
         let newEnv = extendCtxSig n ety e
         pure (newEnv, ESig Type n ety : exs)
     --foo a          (Def n (Pos _ x)) = foo a (Def n x)
-    foo (e,exs)    d@(Def name x) = case lookupTy e name of
+    foo (e,exs)    d@(Def name x) = case lookupSig e name of
         Nothing -> throwErr $ NotInScope e name
         Just ty -> do
                     (et2, tt2) <- checkType e x ty

@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings, OverloadedLists #-}
 module Equal where
 
-import Foundation (Applicative,($),(.),pure,(<>),Bool(True,False),(==),Maybe(Just,Nothing),compare)
+import Foundation (Applicative,($),(.),pure,(<>),Bool(True,False),(==),Maybe(Just,Nothing),compare,undefined)
 import qualified Foundation ((&&))
 
 import Prelude (Show)
@@ -73,22 +73,26 @@ whnf :: Env -> ETerm -> Whnf
 whnf env t = Whnf $ whnf' env t
   
 whnf' :: Env -> ETerm -> ETerm       
-whnf' env t@(EVar _ x _) = case lookupDef env x of 
-    (Just d) -> whnf' env d 
-    _        -> t
+whnf' env eterm@(EVar _ name _) =
+    case lookupDef env name of 
+        Just vardef -> whnf' env vardef
+        _           -> eterm
 
-whnf' env (EApp t t1 t2 tt) = case whnf' env t1 of 
-    (ELam _ x _ body _)          -> whnf' env $ subst (Just x) t2 body
-    nf@(EVar ttt x _) -> let nf2 = whnf' env t2
-                  in case lookupDef env x of
-                      (Just d) -> whnf' env (EApp ttt d nf2 tt)
-                      _        -> EApp ttt nf nf2 tt
-    nf      -> EApp t nf t2 tt
+whnf' env (EApp term f arg etype) = let
+    whnf_f   = whnf' env f
+    whnf_arg = whnf' env arg
+  in
+    case whnf_f of 
+        ELam _ name _ body _ -> whnf' env $ subst (Just name) arg body
+        EVar _ name _        -> case lookupDef env name of
+                                      Just vardef -> whnf' env $ EApp term vardef whnf_arg etype
+                                      _           ->             EApp term whnf_f whnf_arg etype
+        _                    -> EApp term whnf_f whnf_arg etype
 
-whnf' env (ELet _ xs body) = let
-    foo e (ESig _ name  ty) = extendCtxSig name (whnf' e ty) e
-    foo e (EDef _ name x y) = extendCtxDef name (whnf' e x) e
-    newEnv = foldl foo env xs
+whnf' env (ELet _ letExpressions body) = let
+    extendCtx e (ESig _ name etype)   = extendCtxSig name (whnf' e etype) e
+    extendCtx e (EDef _ name eterm _) = extendCtxDef name (whnf' e eterm) e
+    newEnv = foldl extendCtx env letExpressions
   in whnf' newEnv body
 
 whnf' _ tm = tm
