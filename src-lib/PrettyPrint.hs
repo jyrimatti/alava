@@ -10,7 +10,7 @@ import qualified Prelude as P (show)
 import Data.Foldable (foldMap)
 import Data.Text.Lazy (Text, pack)
 
-import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod,Case),AnnType(Inferred),ETerm(EType,EVar,ELam,EApp,EPi,EAnn,ELet,ESig,EDef,ESigma,EProd,ECase))
+import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod,Case),ETerm(EType,EVar,ELam,EApp,EPi,EAnn,ELet,ESig,EDef,ESigma,EProd,ECase))
 
 show :: Show a => a -> Text
 show = pack . P.show
@@ -22,12 +22,11 @@ instance Display Term where
   display Type = "Type"
   display (Var tname)                       = tname
   display (Lam tname Nothing body)          = "\\" <> tname <> ". " <> display body
-  display (Lam tname (Just (Ann (Comment _) t Inferred)) body) = "\\" <> tname <> ":" <> display t <> ". " <> display body
   display (Lam tname (Just t) body)         = "\\" <> tname <> ":" <> display t <> ". " <> display body
   display (App f param)                     = display f <> " " <> display param
   display (Pi Nothing ptype rtype)          = display ptype <> " -> " <> display rtype
   display (Pi (Just name) ptype rtype)      = "(" <> name <> ":" <> display ptype <> ") -> " <> display rtype
-  display (Ann term t _)                    = "(" <> display term <> ":" <> display t <> ")"
+  display (Ann term t)                      = "(" <> display term <> ":" <> display t <> ")"
   display (Let decls body)                  = "let \n" <> foldMap display decls <> "in\n  " <> display body
   display (Sig name t)                      = "\n  " <> name <> " : " <> display t <> "\n"
   display (Def name body)                   = "  " <> name <> " = " <> display body <> "\n"
@@ -49,15 +48,15 @@ dispP (Prod (Just a) b)      = dispP a <> maybe "" (\x -> ", " <> dispP x) b
 dispP x                      = display x
 
 instance Display ETerm where
-  display EType = display Type
-  display (EVar term _ _) = display term
-  display (ELam term _ _ _ _) = display term
-  display (EApp term _ _ _) = display term
-  display (EPi term _ _ _) = display term
-  display (EAnn term _ _) = display term
-  display (ELet term _ _) = display term
-  display (ESig term _ _) = display term
-  display (EDef term _ _ _) = display term
-  display (ESigma term _ _) = display term
-  display (EProd term _ _ _) = display term
+  display EType                = display Type
+  display (EVar term _)        = display term
+  display (ELam term _ _ _)    = display term
+  display (EApp term _ _ _)    = display term
+  display (EPi term _ _)       = display term
+  display (EAnn term _ _)      = display term
+  display (ELet term _ _ _)    = display term
+  display (ESig term _)        = display term
+  display (EDef term _ _)      = display term
+  display (ESigma term _ _)    = display term
+  display (EProd term _ _ _)   = display term
   display (ECase term _ _ _ _) = display term

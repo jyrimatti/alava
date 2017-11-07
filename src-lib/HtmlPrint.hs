@@ -14,7 +14,7 @@ import qualified Text.Blaze.Html5.Attributes as A
 import Data.Text.Lazy (Text,unlines,last,pack)
 import Data.Foldable (foldMap)
 
-import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod),SourcePos(SourcePos),AnnType(Inferred,UserGiven),ETerm(EType,EVar,ELam,EApp,EPi,EAnn,ELet,ESig,EDef,ESigma,EProd))
+import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod),SourcePos(SourcePos),ETerm(EType,EVar,ELam,EApp,EPi,EAnn,ELet,ESig,EDef,ESigma,EProd))
 import Error (Error(NotInScope,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedFunctionType,ExpectedType,LambdaMustHaveFunctionType,NotEqual,MustAnnotateLambda))
 import PrettyPrint (display)
 
@@ -75,14 +75,12 @@ term :: Term -> Html
 term Type                              = wrap "type" $ keyword "Type"
 term (Var tname)                       = wrap "var" $ name tname
 term (Lam tname Nothing b)                             = wrap  "lam"   $ keyword "(\\" <> name tname <>                             keyword ". " <> term b <> keyword ")"
-term (Lam tname (Just (Ann (Comment _) t Inferred)) b) = wrap2 "lam" t $ keyword "(\\" <> name tname <>                             keyword ". " <> term b <> keyword ")"
 term (Lam tname (Just t) b)                            = wrap  "lam"   $ keyword "(\\" <> name tname <> keyword ": " <> term t <> keyword ". " <> term b <> keyword ")"
 term (App f param)                     = wrap "app" $ keyword "(" <> term f <> " " <> term param <> keyword ")"
 term (Pi Nothing ptype rtype)          = wrap "pi" $ keyword "(" <> term ptype <> keyword " -> " <> term rtype <> keyword ")"
 term (Pi (Just tname) ptype rtype)     = wrap "pi" $ keyword "(" <> keyword "(" <> name tname <> keyword ": " <> term ptype <> keyword ") -> " <> term rtype <> keyword ")"
 
-term (Ann tr t UserGiven)              = wrap  "ann"   $ keyword "(" <> term tr <> keyword ": " <> term t <> keyword ")"
-term (Ann (Comment _) t Inferred)      = wrap2 "ann" t $ term t
+term (Ann tr t)                        = wrap  "ann"   $ keyword "(" <> term tr <> keyword ": " <> term t <> keyword ")"
 
 term (Let decls b)                     = wrap "let" $ keyword "let " <> br <> "\n" <> foldMap term decls <> br <> "\n" <> keyword "in" <> br <> "\n" <> term b
 
@@ -121,24 +119,23 @@ dispP x                      = term x
 
 eterm :: ETerm -> Html
 eterm EType                              = wrap "type" $ keyword "Type"
-eterm (EVar (Var tname) _ _)                 = wrap "var" $ name tname
-eterm (ELam (Lam tname Nothing b) _ _ _ _)                            = wrap  "lam"   $ keyword "(\\" <> name tname <>                             keyword ". " <> term b <> keyword ")"
-eterm (ELam (Lam tname (Just t) b) _ _ _ _)                            = wrap  "lam"   $ keyword "(\\" <> name tname <> keyword ": " <> term t <> keyword ". " <> term b <> keyword ")"
+eterm (EVar (Var tname) _)                 = wrap "var" $ name tname
+eterm (ELam (Lam tname Nothing b) _ _ _)                            = wrap  "lam"   $ keyword "(\\" <> name tname <>                             keyword ". " <> term b <> keyword ")"
+eterm (ELam (Lam tname (Just t) b) _ _ _)                            = wrap  "lam"   $ keyword "(\\" <> name tname <> keyword ": " <> term t <> keyword ". " <> term b <> keyword ")"
 eterm (EApp (App f param) _ _ _)                     = wrap "app" $ keyword "(" <> term f <> " " <> term param <> keyword ")"
-eterm (EPi (Pi Nothing ptype rtype) _ _ _)          = wrap "pi" $ keyword "(" <> term ptype <> keyword " -> " <> term rtype <> keyword ")"
-eterm (EPi (Pi (Just tname) ptype rtype) _ _ _)     = wrap "pi" $ keyword "(" <> keyword "(" <> name tname <> keyword ": " <> term ptype <> keyword ") -> " <> term rtype <> keyword ")"
+eterm (EPi (Pi Nothing ptype rtype) _ _)          = wrap "pi" $ keyword "(" <> term ptype <> keyword " -> " <> term rtype <> keyword ")"
+eterm (EPi (Pi (Just tname) ptype rtype) _ _)     = wrap "pi" $ keyword "(" <> keyword "(" <> name tname <> keyword ": " <> term ptype <> keyword ") -> " <> term rtype <> keyword ")"
 
-eterm (EAnn (Ann tr t UserGiven) _ _)              = wrap  "ann"   $ keyword "(" <> term tr <> keyword ": " <> term t <> keyword ")"
-eterm (EAnn (Ann (Comment _) t Inferred) _ _)      = wrap2 "ann" t $ term t
+eterm (EAnn (Ann tr t) _ _)              = wrap  "ann"   $ keyword "(" <> term tr <> keyword ": " <> term t <> keyword ")"
 
-eterm (ELet (Let decls b) _ _)                     = wrap "let" $ keyword "let " <> br <> "\n" <> foldMap term decls <> br <> "\n" <> keyword "in" <> br <> "\n" <> term b
+eterm (ELet (Let decls b) _ _ _)                     = wrap "let" $ keyword "let " <> br <> "\n" <> foldMap term decls <> br <> "\n" <> keyword "in" <> br <> "\n" <> term b
 
 -- FIXME:
-eterm (ESig (Sig tname _) _ _) | last tname == '_' = ""
-eterm (ESig (Sig tname t) _ _)                     = wrap "sig" $ "\n" <> name tname <> keyword " : " <> term t <> "\n"
-eterm (EDef (Def tname _) _ _ _) | last tname == '_' = ""
-eterm (EDef (Def tname b@Lam{}) _ _ _) | isRecord b  = wrap "def" $ name tname <> recordParams b
-eterm (EDef (Def tname b) _ _ _)                     = wrap "def" $ name tname <> keyword " = " <> term b
+eterm (ESig (Sig tname _) _) | last tname == '_' = ""
+eterm (ESig (Sig tname t) _)                     = wrap "sig" $ "\n" <> name tname <> keyword " : " <> term t <> "\n"
+eterm (EDef (Def tname _) _ _) | last tname == '_' = ""
+eterm (EDef (Def tname b@Lam{}) _ _) | isRecord b  = wrap "def" $ name tname <> recordParams b
+eterm (EDef (Def tname b) _ _)                     = wrap "def" $ name tname <> keyword " = " <> term b
 
 eterm (ESigma s@Sigma{} _ _)                         = wrap "sigma" $ "{" <> dispS s <> "}"
 eterm (EProd p@(Prod _ _) _ _ _)                      = wrap "prod" $ "{" <> dispP p <> "}"

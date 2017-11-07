@@ -15,8 +15,6 @@ type TName = Text
 type Type = Term
 type EType = ETerm
 
-data AnnType = UserGiven | Inferred deriving (Show, Eq)
-
 data SourcePos = SourcePos Int Int deriving (Show,Eq)
 
 data Term = 
@@ -28,7 +26,7 @@ data Term =
    | Pi (Maybe TName) Type Type
    
    -- Explicit type hints for terms
-   | Ann Term Type AnnType
+   | Ann Term Type
 
    -- Modules
    | Let [Term] Term
@@ -46,23 +44,28 @@ data Term =
    | Case Term Term Term
   deriving Eq                  
 
+-- Elaborated term
 data ETerm = 
+ --         original                           expression
+ --         term                               elaborated type
+ -------------------------------------------------------------
      EType
-   | EVar Term TName EType
-   | ELam Term TName EType ETerm EType
-   | EApp Term ETerm ETerm EType
-   | EPi  Term (Maybe TName) EType EType
+   | EVar   Term                               EType
+   | ELam   Term   EType ETerm                 EType
+   | EApp   Term   ETerm ETerm                 EType
+   | EPi    Term   EType EType
    
-   | EAnn Term ETerm EType
+   | EAnn   Term   ETerm                       EType
 
-   | ELet Term [ETerm] EType
-   | ESig Term TName EType
-   | EDef Term TName ETerm EType
+   | ELet   Term   [ETerm] ETerm               EType
+   | ESig   Term                               EType
+   | EDef   Term   ETerm                       EType
 
-   | ESigma Term (Maybe EType) (Maybe EType)
+   | ESigma Term   (Maybe EType) (Maybe EType)
     
-   | EProd Term (Maybe ETerm) (Maybe ETerm) EType
-   | ECase Term ETerm ETerm ETerm EType
+   | EProd  Term   (Maybe ETerm) (Maybe ETerm) EType
+   | ECase  Term   ETerm ETerm ETerm           EType
+
   deriving (Eq,Show)
 
 paren :: Term -> Text
@@ -70,31 +73,27 @@ paren t@Type = show t
 paren t@(Pos _ Type) = show t
 paren t = "(" <> show t <> ")"
 
-paren2 :: Maybe Term -> Text
-paren2 Nothing = "Nothing"
-paren2 (Just t)  = "(Just " <> paren t <> ")"
+parenMaybe :: Maybe Term -> Text
+parenMaybe Nothing = "Nothing"
+parenMaybe (Just term)  = "(Just " <> paren term <> ")"
 
-print :: Maybe Term -> Text
-print Nothing = "Nothing"
-print (Just a) = "(Just " <> paren a <> ")"
-
-print2 :: Show a => Maybe a -> Text
-print2 Nothing = "Nothing"
-print2 (Just a) = "(Just " <> show a <> ")"
+printMaybe :: Maybe Text -> Text
+printMaybe Nothing = "Nothing"
+printMaybe (Just txt) = "(Just " <> show txt <> ")"
 
 instance Show Term where
-  show Type          = "Type"
-  show (Var a)       = toList $ "Var " <> show a
-  show (Lam a b c)   = toList $ "Lam " <> show a <> " " <> paren2 b <> " " <> paren c
-  show (App a b)     = toList $ "App " <> paren a <> " " <> paren b
-  show (Pi a b c)    = toList $ "Pi " <> print2 a <> " " <> paren b <> " " <> paren c
-  show (Ann a b c)   = toList $ "Ann " <> paren a <> " " <> paren b <> " " <> show c
-  show (Let a b)     = toList $ "Let " <> show a <> " " <> paren b
-  show (Sig a b)     = toList $ "Sig " <> show a <> " " <> paren b
-  show (Def a b)     = toList $ "Def " <> show a <> " " <> paren b
-  show (Comment a)   = toList $ "Comment " <> show a
-  show (Paren a)     = toList $ "Paren " <> paren a
-  show (Pos _ b)     = toList $ "*" <> show b
-  show (Sigma a b c) = toList $ "Sigma " <> print2 a <> " " <> print b <> " " <> print c
-  show (Prod a b)    = toList $ "Prod " <> paren2 a <> " " <> paren2 b
-  show (Case a b c)  = toList $ "Case " <> paren a <> " " <> paren b <> " " <> paren c
+  show Type                  = "Type"
+  show (Var name)            = toList $ "Var " <> show name
+  show (Lam name mtype term) = toList $ "Lam " <> show name <> " " <> parenMaybe mtype <> " " <> paren term
+  show (App f arg)           = toList $ "App " <> paren f <> " " <> paren arg
+  show (Pi mname a b)        = toList $ "Pi " <> printMaybe mname <> " " <> paren a <> " " <> paren b
+  show (Ann term typeAnnot)  = toList $ "Ann " <> paren term <> " " <> paren typeAnnot
+  show (Let xs body)         = toList $ "Let " <> show xs <> " " <> paren body
+  show (Sig name typeSig)    = toList $ "Sig " <> show name <> " " <> paren typeSig
+  show (Def name term)       = toList $ "Def " <> show name <> " " <> paren term
+  show (Comment txt)         = toList $ "Comment " <> show txt
+  show (Paren term)          = toList $ "Paren " <> paren term
+  show (Pos _ term)          = toList $ "*" <> show term
+  show (Sigma mname ma mb)   = toList $ "Sigma " <> printMaybe mname <> " " <> parenMaybe ma <> " " <> parenMaybe mb
+  show (Prod ma mb)          = toList $ "Prod " <> parenMaybe ma <> " " <> parenMaybe mb
+  show (Case a b c)          = toList $ "Case " <> paren a <> " " <> paren b <> " " <> paren c

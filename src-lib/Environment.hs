@@ -11,36 +11,36 @@ import GHC.Stack (HasCallStack)
 import Data.Text.Lazy (Text,pack,unpack)
 
 import PrettyPrint (display)
-import Syntax (ETerm,EType,SourcePos(SourcePos),TName)
+import Syntax (ETerm,EType,SourcePos,TName)
 
 show :: Show a => a -> Text
 show = pack . P.show
 
 data EnvElement = Sig Text EType | Def Text ETerm deriving Show
 
-data Env = Env { ctx :: [EnvElement], sourceLocation :: [SourcePos] }
+data Env = Env { context :: [EnvElement], sourceLocation :: [SourcePos] }
 
 instance Show Env where
-  show (Env c pos) = unpack $ intercalate "\n" (fmap showElement c) <> "\n" <> show pos
+  show (Env ctx pos) = unpack $ intercalate "\n" (fmap showElement ctx) <> "\n" <> show pos
     where showElement (Sig name etype) = "\n  " <> name <> " : " <> display etype <> "   ... " <> show etype
           showElement (Def name eterm) = "\n  " <> name <> " = " <> display eterm <> "   ... " <> show eterm
 
 emptyEnv :: Env
 emptyEnv = Env {
-    ctx = [],
+    context = [],
     sourceLocation = []
 }
 
 lookupDef :: Env -> TName -> Maybe ETerm
 lookupDef env name = listToMaybe $ do
-    elem <- ctx env
+    elem <- context env
     case elem of
         Def defname value | defname == name -> pure value
         _                                   -> []
 
 lookupSig :: Env -> TName -> Maybe EType
 lookupSig env name = listToMaybe $ do
-    elem <- ctx env
+    elem <- context env
     case elem of
         Sig signame value | signame == name -> pure value
         _                                   -> []
@@ -48,12 +48,12 @@ lookupSig env name = listToMaybe $ do
 extendCtxSig :: HasCallStack => Text -> EType -> Env -> Env
 extendCtxSig name etype env = case lookupSig env name of
     Just _ | name /= "_" -> P.error (unpack $ "Already in context: " <> name)
-    _                    -> env { ctx = Sig name etype : ctx env }
+    _                    -> env { context = Sig name etype : context env }
 
 extendCtxDef :: HasCallStack => Text -> ETerm -> Env -> Env
 extendCtxDef name eterm env = case lookupDef env name of
     Just _ | name /= "_" -> P.error (unpack $ "Already in context: " <> name)
-    _                    -> env { ctx = Def name eterm : ctx env }
+    _                    -> env { context = Def name eterm : context env }
 
 extendSourceLocation :: SourcePos -> Env -> Env
 extendSourceLocation pos env = env { sourceLocation = pos : sourceLocation env}

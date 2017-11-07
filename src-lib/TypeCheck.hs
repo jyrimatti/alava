@@ -56,7 +56,7 @@ tcTerm env t@(Var x) Nothing = do
   logDebug $ "tcTerm:    " <> show t
   case lookupSig env x of
     --Just tyx -> logRet "Var" (Ann t tyx Inferred) tyx
-    Just tyx -> logRet "Var" (EVar t x tyx) tyx
+    Just tyx -> logRet "Var" (EVar t tyx) tyx
     Nothing -> throwErr $ NotInScope env x
 
 --tcTerm env t@(Ann term _ Inferred) Nothing = inferType env term
@@ -71,10 +71,10 @@ tcTerm env t@(Pi x tyA tyB) Nothing = do
   logDebug $ "tcTerm:    " <> show t
   (atyA,_) <- tcType env tyA
   (atyB,_) <- tcType (case x of Just xx -> extendCtxSig xx atyA env; Nothing -> env) tyB
-  logRet "Pi" (EPi t x atyA atyB) EType
+  logRet "Pi" (EPi t atyA atyB) EType
       
 -- Check the type of a function
-tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(EPi _ _ tyA tyB))) = do
+tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(EPi _ tyA tyB))) = do
     logDebug $ "tcTerm:    " <> show t <> "\n                   " <> show a
     -- check tyA matches type annotation on binder, if present
     ea <- case ma of
@@ -87,7 +87,7 @@ tcTerm env t@(Lam x ma body) a@(Just (Whnf p@(EPi _ _ tyA tyB))) = do
     -- check the type of the body of the lambda expression
     let newEnv = extendCtxSig x ea env    
     (ebody, tbody) <- checkType newEnv body tyB
-    logRet "Lam1" (ELam t x ea ebody tbody) p
+    logRet "Lam1" (ELam t ea ebody tbody) p
 
 --tcTerm env t@(Lam "_" s1 s2) (Just (Whnf Type)) = do
 --  todo: --pure (t, Type)
@@ -105,7 +105,7 @@ tcTerm env t@(Lam x (Just annot) body) Nothing = do
     -- infer the type of the body of the lambda expression
     let newEnv     = extendCtxSig x atyA env
     (ebody, atyB) <- inferType newEnv body
-    logRet "Lam2" (ELam t x atyA ebody atyB) (EPi Type (Just x) atyA atyB)
+    logRet "Lam2" (ELam t atyA ebody atyB) (EPi Type atyA atyB)
 
 tcTerm env t@(App t1 t2) Nothing = do
     logDebug $ "tcTerm:    " <> show t
@@ -116,7 +116,7 @@ tcTerm env t@(App t1 t2) Nothing = do
     let ttt = subst mname at2 resType
     logRet "App" (EApp t at1 at2 ttt) ttt
 
-tcTerm env t@(Ann tm ty _) Nothing = do
+tcTerm env t@(Ann tm ty) Nothing = do
     logDebug $ "tcTerm:    " <> show t
     (ty',_)     <- tcType env ty
     (tm', ty'') <- checkType env tm ty'
@@ -148,17 +148,17 @@ tcTerm env t@(Let xs body) ann = do
     foo (e,exs)    (Sig n ty) = do
         (ety,_)    <- inferType e ty
         let newEnv = extendCtxSig n ety e
-        pure (newEnv, ESig Type n ety : exs)
+        pure (newEnv, ESig (Sig n ty) ety : exs)
     --foo a          (Def n (Pos _ x)) = foo a (Def n x)
     foo (e,exs)    d@(Def name x) = case lookupSig e name of
         Nothing -> throwErr $ NotInScope e name
         Just ty -> do
                     (et2, tt2) <- checkType e x ty
                     let newEnv2 = extendCtxDef name et2 e
-                    pure (newEnv2, EDef Type name et2 tt2 : exs)
+                    pure (newEnv2, EDef (Def name x) et2 tt2 : exs)
   (newEnv, exs)  <- foldM foo (env,[]) xs
   (ebody, etype) <- tcTerm newEnv body ann
-  logRet "Let" (ELet t (reverse exs) ebody) etype
+  logRet "Let" (ELet t (reverse exs) ebody etype) etype
   
              
            
@@ -166,7 +166,7 @@ tcTerm env t@(Let xs body) ann = do
 tcTerm env s@(Sig x t) a = do
   logDebug $ "tcTerm:    " <> show s <> "\n                   " <> show a
   (ee, _) <- inferType env t
-  logRet "Sig" (ESig s x ee) ee
+  logRet "Sig" (ESig s ee) ee
 
 --tcTerm env t@(Def name body) a@(Just (Whnf (Sigma _ (Just ann) Nothing))) = do
 --   logDebug $ "tcTerm " <> show t <> show a
@@ -176,7 +176,7 @@ tcTerm env s@(Sig x t) a = do
 tcTerm env t@(Def name body) ann = do
    logDebug $ "tcTerm:    " <> show t <> "\n                   " <> show ann
    (ebody, etype) <- tcTerm env body ann
-   logRet "Def2" (EDef t name ebody etype) etype
+   logRet "Def2" (EDef t ebody etype) etype
       
 
     
@@ -229,6 +229,6 @@ tcTerm env tm a@(Just (Whnf ty)) = do
     (atm, ty') <- inferType env tm
     res <- equate env ty' ty
     if res then logRet "_" atm ty
-           else throwErr $ TypesDontMatch env tm ty' ty
+           else throwErr $ TypesDontMatch env tm ty ty'
                          
 tcTerm _ tm tt = P.error $ unpack $ "(" <> show tm <> ") (" <> show tt <> ")"

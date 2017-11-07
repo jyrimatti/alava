@@ -39,16 +39,16 @@ data Error = DefinitionNotFound Env Text ETerm
            | MustAnnotateLambda Env Term
 
 getEnv :: Error -> Env
-getEnv (DefinitionNotFound e _ _) = e
-getEnv (NotInScope e _) = e
-getEnv (NotEqual e _ _) = e
+getEnv (DefinitionNotFound e _ _)         = e
+getEnv (NotInScope e _)                   = e
+getEnv (NotEqual e _ _)                   = e
 getEnv (LambdaMustHaveFunctionType e _ _) = e
-getEnv (ExpectedFunctionType e _ _)= e
-getEnv (ExpectedType e _)= e
-getEnv (TypesDontMatch e _ _ _) = e
-getEnv (AppTypesDontMatch e _ _ _) = e
-getEnv (CouldNotInferType e _) = e
-getEnv (MustAnnotateLambda e _) = e
+getEnv (ExpectedFunctionType e _ _)       = e
+getEnv (ExpectedType e _)                 = e
+getEnv (TypesDontMatch e _ _ _)           = e
+getEnv (AppTypesDontMatch e _ _ _)        = e
+getEnv (CouldNotInferType e _)            = e
+getEnv (MustAnnotateLambda e _)           = e
 
 unlines :: [Text] -> P.String
 unlines = unpack . intercalate "\n"
@@ -77,19 +77,19 @@ instance Show Error where
     ,"Env:"
     ,show env
     ]
-  show (LambdaMustHaveFunctionType env term t) = unlines
+  show (LambdaMustHaveFunctionType env term actual) = unlines
     ["A lambda:"
     ,"  " <> display term <> "   ... " <> show term
     ," was expected to have a function type, but instead had:"
-    ,"  " <> display t <> "   ... " <> show t
+    ,"  " <> display actual <> "   ... " <> show actual
     ,"Env:"
     ,show env
     ]
-  show (ExpectedFunctionType env term typ) = unlines
+  show (ExpectedFunctionType env term actual) = unlines
     ["Expected a function type for:"
     ,"  " <> display term <> "   ... " <> show term
     ,"but instead was:"
-    ,"  " <> display typ <> "   ... " <> show typ
+    ,"  " <> display actual <> "   ... " <> show actual
     ,"Env:"
     ,show env
     ]
@@ -99,7 +99,7 @@ instance Show Error where
     ,"Env:"
     ,show env
     ]
-  show (TypesDontMatch env term actual expected) = unlines
+  show (TypesDontMatch env term expected actual) = unlines
     ["Types don't match for term:"
     ,"  " <> display term <> "   ... " <> show term
     ,"Expected:"
