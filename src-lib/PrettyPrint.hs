@@ -20,22 +20,22 @@ class Display x where
 
 instance Display Term where
   display Type = "Type"
-  display (Var tname)                       = tname
-  display (Lam tname Nothing body)          = "\\" <> tname <> ". " <> display body
-  display (Lam tname (Just t) body)         = "\\" <> tname <> ":" <> display t <> ". " <> display body
-  display (App f param)                     = display f <> " " <> display param
-  display (Pi Nothing ptype rtype)          = display ptype <> " -> " <> display rtype
-  display (Pi (Just name) ptype rtype)      = "(" <> name <> ":" <> display ptype <> ") -> " <> display rtype
-  display (Ann term t)                      = "(" <> display term <> ":" <> display t <> ")"
-  display (Let decls body)                  = "let \n" <> foldMap display decls <> "in\n  " <> display body
-  display (Sig name t)                      = "\n  " <> name <> " : " <> display t <> "\n"
-  display (Def name body)                   = "  " <> name <> " = " <> display body <> "\n"
-  display (Comment text)                    = "{-" <> text <> "-}\n"
-  display (Paren t)                         = "(" <> display t <> ")"
-  display (Pos _ t)                         = display t
-  display s@Sigma{}                         = "{" <> dispS s <> "}"
-  display p@(Prod _ _)                      = "(" <> dispP p <> ")"
-  display (Case a b c)                      = "case " <> display a <> " of\n " <> display b <> " -> " <> display c
+  display (Var name)               = name
+  display (Lam name Nothing body)  = "\\" <> name <> ". " <> display body
+  display (Lam name (Just t) body) = "\\" <> name <> ":" <> display t <> ". " <> display body
+  display (App f arg)              = display f <> " " <> display arg
+  display (Pi Nothing a b)         = display a <> " -> " <> display b
+  display (Pi (Just name) a b)     = "(" <> name <> ":" <> display a <> ") -> " <> display b
+  display (Ann term typeAnnot)     = "(" <> display term <> ":" <> display typeAnnot <> ")"
+  display (Let xs body)            = "let \n" <> foldMap display xs <> "in\n  " <> display body
+  display (Sig name typeSig)       = "\n  " <> name <> " : " <> display typeSig <> "\n"
+  display (Def name term)          = "  " <> name <> " = " <> display term <> "\n"
+  display (Comment txt)            = "{-" <> txt <> "-}\n"
+  display (Paren term)             = "(" <> display term <> ")"
+  display (Pos _ term)             = display term
+  display s@Sigma{}                = "{" <> dispS s <> "}"
+  display p@(Prod _ _)             = "(" <> dispP p <> ")"
+  display (Case a b c)             = "case " <> display a <> " of\n " <> display b <> " -> " <> display c
 
 dispS :: Term -> Text
 dispS (Sigma Nothing Nothing Nothing) = ""

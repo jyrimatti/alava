@@ -164,7 +164,7 @@ helloMain = do
 noErrorsText :: Text
 noErrorsText = "No errors. Compilation will happen \"on blur\""
 
-showError :: (Error, SourcePos) -> Html
+showError :: (Error, Maybe SourcePos) -> Html
 showError (err, pos) = dl $ do
                         dt $ toHtml $ show pos
                         dd $ HtmlPrint.error err

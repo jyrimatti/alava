@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
 module Main where
 
-import Foundation (($),(.),getArgs,fst,IO,(<$>),Either(Left,Right),fmap,(<>),toList)
+import Foundation (($),(.),getArgs,fst,IO,(<$>),Maybe,Either(Left,Right),fmap,(<>),toList)
 import Foundation.IO (readFile)
 import Foundation.VFS ()
 import Foundation.VFS.FilePath (unsafeFilePath,unsafeFileName,Relativity(Relative))
@@ -44,5 +44,5 @@ main = do
         "parse" -> putStrLn $ show $ P.head $ parse contents
         _ -> putStrLn "text/html/parse"
 
-showErrors :: [(Error, SourcePos)] -> [Text]
+showErrors :: [(Error, Maybe SourcePos)] -> [Text]
 showErrors = fmap (\ (err, pos) -> show pos <> ": " <> show err <> "\n")
