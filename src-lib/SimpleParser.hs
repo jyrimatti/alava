@@ -418,3 +418,4 @@ recordcon = withPos $ rec <$> (char '{' *> optional (ws *> valdef)) <*> many (ws
         rec Nothing        [] = Prod Nothing Nothing
         rec d@(Just _)     [] = Prod d Nothing
         rec d@(Just _) (x:xs) = Prod d (Just $ rec (Just x) xs)
+

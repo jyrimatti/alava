@@ -10,7 +10,7 @@ import GHC.Stack (HasCallStack)
 
 import Data.Text.Lazy (Text,pack,unpack)
 
-import PrettyPrint (display)
+import PrettyPrint (printETerm)
 import Syntax (ETerm,EType,SourcePos,TName)
 
 show :: Show a => a -> Text
@@ -22,8 +22,8 @@ data Env = Env { context :: [EnvElement], sourceLocation :: [SourcePos] }
 
 instance Show Env where
   show (Env ctx pos) = unpack $ intercalate "\n" (fmap showElement ctx) <> "\n" <> show pos
-    where showElement (Sig name etype) = "\n  " <> name <> " : " <> display etype <> "   ... " <> show etype
-          showElement (Def name eterm) = "\n  " <> name <> " = " <> display eterm <> "   ... " <> show eterm
+    where showElement (Sig name etype) = "\n  " <> name <> " : " <> printETerm etype <> "   ... " <> show etype
+          showElement (Def name eterm) = "\n  " <> name <> " = " <> printETerm eterm <> "   ... " <> show eterm
 
 emptyEnv :: Env
 emptyEnv = Env {

@@ -16,7 +16,7 @@ import Data.Foldable (foldMap)
 
 import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod),SourcePos(SourcePos),ETerm(EType,EVar,ELam,EApp,EPi,EAnn,ELet,ESig,EDef,ESigma,EProd))
 import Error (Error(NotInScope,TypesDontMatch,AppTypesDontMatch,CouldNotInferType,ExpectedFunctionType,ExpectedType,LambdaMustHaveFunctionType,NotEqual,MustAnnotateLambda))
-import PrettyPrint (display)
+import PrettyPrint (printTerm,printETerm)
 
 show :: Show a => a -> Text
 show = pack . P.show
@@ -150,47 +150,47 @@ error (NotInScope _ var) = toHtml $ unlines
 error (NotEqual _ expected actual) = toHtml $ unlines
   ["Types don't match."
   ,"Expected:"
-  ,"  " <> display expected
+  ,"  " <> printETerm expected
   ,"Actual:"
-  ,"  " <> display actual
+  ,"  " <> printTerm actual
   ]
 error (LambdaMustHaveFunctionType _ trm t) = toHtml $ unlines
   ["A lambda:"
-  ,"  " <> display trm
+  ,"  " <> printTerm trm
   ," was expected to have a function type, but instead had:"
-  ,"  " <> display t
+  ,"  " <> printETerm t
   ]
 error (ExpectedFunctionType _ trm typ) = toHtml $ unlines
   ["Expected a function type for:"
-  ,"  " <> display trm
+  ,"  " <> printETerm trm
   ,"but instead was:"
-  ,"  " <> display typ
+  ,"  " <> printETerm typ
   ]
 error (ExpectedType _ trm) = toHtml $ unlines
   ["Expected Type for:"
-  ,"  " <> display trm
+  ,"  " <> printTerm trm
   ]
 error (TypesDontMatch _ trm actual expected) = toHtml $ unlines
   ["Types don't match for term:"
-  ,"  " <> display trm
+  ,"  " <> printTerm trm
   ,"Expected:"
-  ,"  " <> display expected
+  ,"  " <> printETerm expected
   ,"Actual:"
-  ,"  " <> display actual
+  ,"  " <> printETerm actual
   ]
 error (AppTypesDontMatch _ trm expected actual) = toHtml $ unlines
   ["Application argument type doesn't match the type of the function in:"
-  ,"  " <> display trm
+  ,"  " <> printTerm trm
   ,"Expected argument type:"
-  ,"  " <> display expected
+  ,"  " <> printETerm expected
   ,"Actual: parameter type"
-  ,"  " <> display actual
+  ,"  " <> printTerm actual
   ]
 error (CouldNotInferType _ trm) = toHtml $ unlines
   ["Could not infer type for:"
-  ,"  " <> display trm
+  ,"  " <> printTerm trm
   ]
 error (MustAnnotateLambda _ trm) = toHtml $ unlines
   ["Must annotate lambda:"
-  ,"  " <> display trm
+  ,"  " <> printTerm trm
   ]

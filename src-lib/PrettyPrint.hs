@@ -1,62 +1,52 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude, OverloadedStrings, LambdaCase #-}
 
 module PrettyPrint where
 
-import Foundation (Maybe(Just,Nothing),(<>),(.),maybe)
+import Foundation (Maybe(Just,Nothing),(<>),($),(.),maybe)
 
 import Prelude (Show)
 import qualified Prelude as P (show)
 
-import Data.Foldable (foldMap)
+import Data.Foldable (fold, foldMap)
 import Data.Text.Lazy (Text, pack)
 
-import Syntax (Term(Type,Var,Lam,App,Pi,Ann,Let,Sig,Def,Comment,Paren,Pos,Sigma,Prod,Case),ETerm(EType,EVar,ELam,EApp,EPi,EAnn,ELet,ESig,EDef,ESigma,EProd,ECase))
+import Data.Functor.Foldable(cata)
 
-show :: Show a => a -> Text
-show = pack . P.show
+import Syntax (TermF(..),ETermF(..),Term(..),ETerm(..))
 
-class Display x where
-  display :: x -> Text
+printTerm :: Term -> Text
+printTerm = cata $ \case
+  TypeF                          -> "Type"
+  VarF name                      -> name
+  LamF name Nothing body         -> "\\" <> name <> ". " <> body
+  LamF name (Just t) body        -> "\\" <> name <> ":" <> t <> ". " <> body
+  AppF f arg                     -> f <> " " <> arg
+  PiF Nothing a b                -> a <> " -> " <> b
+  PiF (Just name) a b            -> "(" <> name <> ":" <> a <> ") -> " <> b
+  AnnF term typeAnnot            -> "(" <> term <> ":" <> typeAnnot <> ")"
+  LetF xs body                   -> "let \n" <> fold xs <> "in\n  " <> body
+  SigF name typeSig              -> "\n  " <> name <> " : " <> typeSig <> "\n"
+  DefF name term                 -> "  " <> name <> " = " <> term <> "\n"
+  CommentF txt                   -> "{-" <> txt <> "-}\n"
+  ParenF term                    -> "(" <> term <> ")"
+  PosF _ term                    -> term
+  SigmaF Nothing Nothing Nothing -> ""
+  SigmaF ma (Just b) c           -> "{" <> maybe "" (<> ": ") ma <> b <> maybe "" (\x -> ", " <> x) c <> "}"
+  ProdF Nothing Nothing          -> ""
+  ProdF (Just a) b               -> "(" <> a <> maybe "" (\x -> ", " <> x) b <> ")"
+  CaseF a b c                    -> "case " <> a <> " of\n " <> b <> " -> " <> c
 
-instance Display Term where
-  display Type = "Type"
-  display (Var name)               = name
-  display (Lam name Nothing body)  = "\\" <> name <> ". " <> display body
-  display (Lam name (Just t) body) = "\\" <> name <> ":" <> display t <> ". " <> display body
-  display (App f arg)              = display f <> " " <> display arg
-  display (Pi Nothing a b)         = display a <> " -> " <> display b
-  display (Pi (Just name) a b)     = "(" <> name <> ":" <> display a <> ") -> " <> display b
-  display (Ann term typeAnnot)     = "(" <> display term <> ":" <> display typeAnnot <> ")"
-  display (Let xs body)            = "let \n" <> foldMap display xs <> "in\n  " <> display body
-  display (Sig name typeSig)       = "\n  " <> name <> " : " <> display typeSig <> "\n"
-  display (Def name term)          = "  " <> name <> " = " <> display term <> "\n"
-  display (Comment txt)            = "{-" <> txt <> "-}\n"
-  display (Paren term)             = "(" <> display term <> ")"
-  display (Pos _ term)             = display term
-  display s@Sigma{}                = "{" <> dispS s <> "}"
-  display p@(Prod _ _)             = "(" <> dispP p <> ")"
-  display (Case a b c)             = "case " <> display a <> " of\n " <> display b <> " -> " <> display c
-
-dispS :: Term -> Text
-dispS (Sigma Nothing Nothing Nothing) = ""
-dispS (Sigma ma (Just b) c)           = maybe "" (\a -> show a <> ": ") ma <> dispS b <> maybe "" (\x -> ", " <> dispS x) c
-dispS x                               = display x
-
-dispP :: Term -> Text
-dispP (Prod Nothing Nothing) = ""
-dispP (Prod (Just a) b)      = dispP a <> maybe "" (\x -> ", " <> dispP x) b
-dispP x                      = display x
-
-instance Display ETerm where
-  display EType                = display Type
-  display (EVar term _)        = display term
-  display (ELam term _ _ _)    = display term
-  display (EApp term _ _ _)    = display term
-  display (EPi term _ _)       = display term
-  display (EAnn term _ _)      = display term
-  display (ELet term _ _ _)    = display term
-  display (ESig term _)        = display term
-  display (EDef term _ _)      = display term
-  display (ESigma term _ _)    = display term
-  display (EProd term _ _ _)   = display term
-  display (ECase term _ _ _ _) = display term
+printETerm :: ETerm -> Text
+printETerm = \case
+  EType              -> printTerm Type
+  EVar term _        -> printTerm term
+  ELam term _ _ _    -> printTerm term
+  EApp term _ _ _    -> printTerm term
+  EPi term _ _       -> printTerm term
+  EAnn term _ _      -> printTerm term
+  ELet term _ _ _    -> printTerm term
+  ESig term _        -> printTerm term
+  EDef term _ _      -> printTerm term
+  ESigma term _ _    -> printTerm term
+  EProd term _ _ _   -> printTerm term
+  ECase term _ _ _ _ -> printTerm term

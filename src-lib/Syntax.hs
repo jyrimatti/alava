@@ -1,19 +1,18 @@
-{-# LANGUAGE NoImplicitPrelude, OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies, LambdaCase, DeriveFunctor, DeriveFoldable, DeriveTraversable, DataKinds, NoImplicitPrelude, OverloadedStrings, TemplateHaskell #-}
 module Syntax where
 
 import Foundation (($),(.),Int,Maybe(Just,Nothing),toList,(<>),Eq)
-import Data.Text.Lazy (Text,pack)
+import Data.Text.Lazy (Text,pack,unpack)
 
 import Prelude (Show)
 import qualified Prelude as P (show)
-
-show :: Show a => a -> Text
-show = pack . P.show
+import Data.Foldable (fold)
+import Data.Functor.Foldable.TH
+import Data.Functor.Foldable (cata)
 
 type TName = Text
 
 type Type = Term
-type EType = ETerm
 
 data SourcePos = SourcePos Int Int deriving (Show,Eq)
 
@@ -21,16 +20,16 @@ data Term =
    -- Core language
      Type
    | Var TName
-   | Lam TName (Maybe Type) Term
+   | Lam TName (Maybe Term) Term
    | App Term Term
-   | Pi (Maybe TName) Type Type
+   | Pi (Maybe TName) Term Term
    
    -- Explicit type hints for terms
-   | Ann Term Type
+   | Ann Term Term
 
    -- Modules
    | Let [Term] Term
-   | Sig TName Type
+   | Sig TName Term
    | Def TName Term
 
    -- Syntactic conveniences
@@ -38,11 +37,41 @@ data Term =
    | Paren Term
    | Pos SourcePos Term
 
-   | Sigma (Maybe TName) (Maybe Type) (Maybe Type)
+   | Sigma (Maybe TName) (Maybe Term) (Maybe Term)
     
    | Prod (Maybe Term) (Maybe Term)
    | Case Term Term Term
   deriving Eq                  
+
+paren :: Text -> Text
+paren t = "(" <> t <> ")"
+
+parenMaybe :: Maybe Text -> Text
+parenMaybe Nothing = "Nothing"
+parenMaybe (Just term)  = "(Just " <> paren term <> ")"
+
+makeBaseFunctor ''Term
+
+instance Show Term where
+  show = unpack . cata (\case
+    TypeF                -> "Type"
+    VarF name            -> "Var " <> name
+    LamF name mtype term -> "Lam " <> name <> " " <> parenMaybe mtype <> " " <> paren term
+    AppF f arg           -> "App " <> paren f <> " " <> paren arg
+    PiF mname a b        -> "Pi " <> parenMaybe mname <> " " <> paren a <> " " <> paren b
+    AnnF term typeAnnot  -> "Ann " <> paren term <> " " <> paren typeAnnot
+    LetF xs body         -> "Let " <> fold xs <> " " <> paren body
+    SigF name typeSig    -> "Sig " <> name <> " " <> paren typeSig
+    DefF name term       -> "Def " <> name <> " " <> paren term
+    CommentF txt         -> "Comment " <> txt
+    ParenF term          -> "Paren " <> paren term
+    PosF _ term          -> "*" <> term
+    SigmaF mname ma mb   -> "Sigma " <> parenMaybe mname <> " " <> parenMaybe ma <> " " <> parenMaybe mb
+    ProdF ma mb          -> "Prod " <> parenMaybe ma <> " " <> parenMaybe mb
+    CaseF a b c          -> "Case " <> paren a <> " " <> paren b <> " " <> paren c
+   )
+
+type EType = ETerm
 
 -- Elaborated term
 data ETerm = 
@@ -68,32 +97,4 @@ data ETerm =
 
   deriving (Eq,Show)
 
-paren :: Term -> Text
-paren t@Type = show t
-paren t@(Pos _ Type) = show t
-paren t = "(" <> show t <> ")"
-
-parenMaybe :: Maybe Term -> Text
-parenMaybe Nothing = "Nothing"
-parenMaybe (Just term)  = "(Just " <> paren term <> ")"
-
-printMaybe :: Maybe Text -> Text
-printMaybe Nothing = "Nothing"
-printMaybe (Just txt) = "(Just " <> show txt <> ")"
-
-instance Show Term where
-  show Type                  = "Type"
-  show (Var name)            = toList $ "Var " <> show name
-  show (Lam name mtype term) = toList $ "Lam " <> show name <> " " <> parenMaybe mtype <> " " <> paren term
-  show (App f arg)           = toList $ "App " <> paren f <> " " <> paren arg
-  show (Pi mname a b)        = toList $ "Pi " <> printMaybe mname <> " " <> paren a <> " " <> paren b
-  show (Ann term typeAnnot)  = toList $ "Ann " <> paren term <> " " <> paren typeAnnot
-  show (Let xs body)         = toList $ "Let " <> show xs <> " " <> paren body
-  show (Sig name typeSig)    = toList $ "Sig " <> show name <> " " <> paren typeSig
-  show (Def name term)       = toList $ "Def " <> show name <> " " <> paren term
-  show (Comment txt)         = toList $ "Comment " <> show txt
-  show (Paren term)          = toList $ "Paren " <> paren term
-  show (Pos _ term)          = toList $ "*" <> show term
-  show (Sigma mname ma mb)   = toList $ "Sigma " <> printMaybe mname <> " " <> parenMaybe ma <> " " <> parenMaybe mb
-  show (Prod ma mb)          = toList $ "Prod " <> parenMaybe ma <> " " <> parenMaybe mb
-  show (Case a b c)          = toList $ "Case " <> paren a <> " " <> paren b <> " " <> paren c
+makeBaseFunctor ''ETerm

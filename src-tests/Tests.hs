@@ -33,7 +33,7 @@ main = defaultMain $ files ["basic_syntax", "dependent"]
                            ["t1", "t2", "records", "conditionals"] tests
 
 tests :: IO [Text] -> TestTree
-tests fs = testGroup "Tests" $ fmap (\i -> testCase (P.show i) $ fs >>= (\ts -> doTest $ ts P.!! i)) $ [0..5]
+tests fs = testGroup "Tests" $ fmap (\i -> testCase (P.show i) $ fs >>= (\ts -> doTest $ ts P.!! i)) [0..5]
 
 doTest :: Text -> IO ()
 doTest content = do

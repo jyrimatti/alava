@@ -18,7 +18,7 @@ import Prelude (Show)
 import qualified Prelude as P (show,head)
 
 import Alava (parse, infer)
-import PrettyPrint (display)
+import PrettyPrint (printETerm)
 import qualified HtmlPrint (html,eterm)
 import Syntax (SourcePos)
 import Error (Error)
@@ -34,7 +34,7 @@ main = do
         "text" -> do
             e <- runStdoutLoggingT . infer . P.head . parse $ contents
             mapM_ putStrLn $ case e of
-                Right (t,_) -> [display t]
+                Right (t,_) -> [printETerm t]
                 Left errors -> showErrors errors
         "html" -> do
             e <- runStdoutLoggingT . infer . P.head . parse $ contents

@@ -14,7 +14,7 @@ import Control.Monad.Except (ExceptT,throwError)
 
 import Syntax (Term,SourcePos,Type,ETerm,EType)
 import Environment (Env,getSourceLocation)
-import PrettyPrint (display)
+import PrettyPrint (printTerm,printETerm)
 
 show :: Show a => a -> Text
 show = pack . P.show
@@ -58,7 +58,7 @@ instance Show Error where
     ["Definition not found for variable:"
     ,"  " <> var
     ,"Expected:"
-    ,"  " <> display expected <> "   ... " <> show expected
+    ,"  " <> printETerm expected <> "   ... " <> show expected
     ,"Env:"
     ,show env
     ]
@@ -71,63 +71,63 @@ instance Show Error where
   show (NotEqual env expected actual) = unlines
     ["Types don't match."
     ,"Expected:"
-    ,"  " <> display expected <> "   ... " <> show expected
+    ,"  " <> printETerm expected <> "   ... " <> show expected
     ,"Actual:"
-    ,"  " <> display actual <> "   ... " <> show actual
+    ,"  " <> printTerm actual <> "   ... " <> show actual
     ,"Env:"
     ,show env
     ]
   show (LambdaMustHaveFunctionType env term actual) = unlines
     ["A lambda:"
-    ,"  " <> display term <> "   ... " <> show term
+    ,"  " <> printTerm term <> "   ... " <> show term
     ," was expected to have a function type, but instead had:"
-    ,"  " <> display actual <> "   ... " <> show actual
+    ,"  " <> printETerm actual <> "   ... " <> show actual
     ,"Env:"
     ,show env
     ]
   show (ExpectedFunctionType env term actual) = unlines
     ["Expected a function type for:"
-    ,"  " <> display term <> "   ... " <> show term
+    ,"  " <> printETerm term <> "   ... " <> show term
     ,"but instead was:"
-    ,"  " <> display actual <> "   ... " <> show actual
+    ,"  " <> printETerm actual <> "   ... " <> show actual
     ,"Env:"
     ,show env
     ]
   show (ExpectedType env term) = unlines
     ["Expected Type for:"
-    ,"  " <> display term <> "   ... " <> show term
+    ,"  " <> printTerm term <> "   ... " <> show term
     ,"Env:"
     ,show env
     ]
   show (TypesDontMatch env term expected actual) = unlines
     ["Types don't match for term:"
-    ,"  " <> display term <> "   ... " <> show term
+    ,"  " <> printTerm term <> "   ... " <> show term
     ,"Expected:"
-    ,"  " <> display expected <> "   ... " <> show expected
+    ,"  " <> printETerm expected <> "   ... " <> show expected
     ,"Actual:"
-    ,"  " <> display actual <> "   ... " <> show actual
+    ,"  " <> printETerm actual <> "   ... " <> show actual
     ,"Env:"
     ,show env
     ]
   show (AppTypesDontMatch env term expected actual) = unlines
     ["Application argument type doesn't match the type of the function in:"
-    ,"  " <> display term <> "   ... " <> show term
+    ,"  " <> printTerm term <> "   ... " <> show term
     ,"Expected argument type:"
-    ,"  " <> display expected <> "   ... " <> show expected
+    ,"  " <> printETerm expected <> "   ... " <> show expected
     ,"Actual: parameter type"
-    ,"  " <> display actual <> "   ... " <> show actual
+    ,"  " <> printTerm actual <> "   ... " <> show actual
     ,"Env:"
     ,show env
     ]
   show (CouldNotInferType env term) = unlines
     ["Could not infer type for:"
-    ,"  " <> display term <> "   ... " <> show term
+    ,"  " <> printTerm term <> "   ... " <> show term
     ,"Env:"
     ,show env
     ]
   show (MustAnnotateLambda env term) = unlines
     ["Must annotate lambda:"
-    ,"  " <> display term <> "   ... " <> show term
+    ,"  " <> printTerm term <> "   ... " <> show term
     ,"Env:"
     ,show env
     ]
